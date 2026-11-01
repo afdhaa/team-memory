@@ -326,6 +326,44 @@ GP="$TMP/gaps"; mkdir -p "$GP" && ( cd "$GP" && git init -q && git config user.e
 o="$(cd "$GP" && bash "$SRC/scripts/mem.sh" gaps)"
 check "gaps: busy folders without memory, inside packages too; tagged ones covered; bots and broad tags do not count" 'printf "%s" "$o" | grep -qE "src/billing/ +6 commits ·  1 person · no memory" && printf "%s" "$o" | grep -q "packages/ui/src/forms/ .*no memory" && printf "%s" "$o" | grep -qE "src/auth/ +5 commits · .*1 mention \(decisions.md\)"' "$o"
 
+echo "• regressions from 4.3.2"
+printf '%s\n' '1. **[2026-01-01] The docs site breaks when a page has no front matter** (user, seen: 2)' >> "$QZ/.memory/gotchas.md"
+o="$(printf '{"session_id":"%s-ya","cwd":"%s","prompt":"update docs ya"}' "$RUN" "$QZ" | bash "$SRC/hooks/pm-hook.sh" prompt claude)"
+check "recall: a two-letter word (\"ya\") does not raise the bar for one real term" 'printf "%s" "$o" | grep -q "front matter"' "$o"
+echo '- 2026-01-01 · Payments use the v2 API since March, because v1 is shut down in June. #api (user)' >> "$QZ/.memory/decisions.md"
+o="$(cd "$QZ" && bash "$SRC/scripts/mem.sh" quiz -n 20 </dev/null)"
+check "quiz: \"since\" (time) is not read as the reason" 'printf "%s" "$o" | grep -q "> Decided: Payments use the v2 API since March." && printf "%s" "$o" | grep -q "^V1 is shut down in June"' "$o"
+MR="$TMP/mono"; mkdir -p "$MR" && ( cd "$MR" && git init -q && git config user.email t@t && git config user.name t && mkdir -p packages/ui/src/forms packages/ui/src/old &&
+  for i in 1 2 3 4 5 6; do echo $i >> packages/ui/src/forms/f.ts; git add -A; git commit -qm f$i; done &&
+  echo x > packages/ui/src/old/jwt.ts && git add -A && git commit -qm o && git mv packages/ui/src/old/jwt.ts packages/ui/src/old/token.ts && git commit -qm mv &&
+  cd packages/ui && bash "$SRC/scripts/mem.sh" scan >/dev/null 2>&1 &&
+  printf '%s\n' '- 2026-01-01 · Forms validate on blur, because users asked. @src/forms/ (user)' '- 2026-01-01 · Tokens are in `src/old/jwt.ts`. (user)' >> .memory/decisions.md )
+o="$(cd "$MR/packages/ui" && bash "$SRC/scripts/mem.sh" gaps; cd "$MR/packages/ui" && bash "$SRC/scripts/mem.sh" lint)"
+check "memory in a monorepo package: gaps and renames use the package's own paths" 'printf "%s" "$o" | grep -qE "^  src/forms/ +6 commits .*1 mention \(decisions.md\)" && printf "%s" "$o" | grep -q "renamed to \`src/old/token.ts\`" && ! printf "%s" "$o" | grep -q "packages/ui/src"' "$o"
+
+echo "• scan and gaps details (ky)"
+KY="$TMP/kylike"; mkdir -p "$KY/test" "$KY/source" && ( cd "$KY" && git init -q && git config user.email t@t && git config user.name t &&
+  printf '{"name":"k","devDependencies":{"ava":"^6.4.1","xo":"^1.2.3","playwright":"^1.58.2"}}\n' > package.json && echo '{}' > tsconfig.test.json &&
+  echo x > test/a.ts && echo y > source/b.ts && git add -A && git commit -qm i && echo 2 >> .gitignore && git add -A && git commit -qm g &&
+  for i in 1 2 3; do echo $i >> test/a.ts; git add -A; git commit -qm t$i; done && bash "$SRC/scripts/mem.sh" scan >/dev/null 2>&1 )
+o="$(cd "$KY" && bash "$SRC/scripts/mem.sh" scan --print)"
+check "scan: AVA, XO and Playwright detected; tsconfig.test.json is not a test file" 'printf "%s" "$o" | grep -q "AVA 6.4.1, Playwright 1.58.2, XO 1.2.3" && ! printf "%s" "$o" | grep -q "(root)"' "$o"
+o="$(cd "$KY" && bash "$SRC/scripts/mem.sh" gaps)"
+check "gaps: Key facts filled by the scan do not count as memory; one-commit folders are not busy" 'printf "%s" "$o" | grep -qE "^  test/ +4 commits .*no memory" && ! printf "%s" "$o" | grep -q "^  source/"' "$o"
+
+echo "• found while writing the ky example"
+echo '- 2026-01-01 · Unknown errors are not retried, because pull request #842 found loops. #retry @source/core/ (agent, unconfirmed)' >> "$QZ/.memory/decisions.md"
+o="$(cd "$QZ" && bash "$SRC/scripts/mem.sh" quiz -n 30 </dev/null)"
+check "quiz: a #number in the text stays text; only the trailing tags are tags" 'printf "%s" "$o" | grep -q "^Pull request #842 found loops" && printf "%s" "$o" | grep -q "decision · \`source/core/\` · retry$"' "$o"
+o="$(cd "$QZ" && bash "$SRC/scripts/mem.sh" search waiting)"
+check "search: section headings (\"## Blocked / waiting on\") are not results" '! printf "%s" "$o" | grep -q "## Blocked"' "$o"
+( cd "$QZ" && git config user.email t@t && git config user.name t && printf '# T\n\nEvery request is retried.\nIt is not only a class.\n' > .memory/topics/t.md )
+o="$(cd "$QZ" && bash "$SRC/scripts/mem.sh" lint)"
+check "lint: \"checked every case?\" for new lines; \"not only\" is not a claim" 'printf "%s" "$o" | grep -q "t.md:3: \"every\"" && ! printf "%s" "$o" | grep -q "t.md:4"' "$o"
+( cd "$QZ" && git add -A && git commit -qm t )
+o="$(cd "$QZ" && bash "$SRC/scripts/mem.sh" lint)"
+check "lint: a committed line is not asked about again" '! printf "%s" "$o" | grep -q "t.md:3"' "$o"
+
 echo "• stale mentions"
 SM="$TMP/stale"; mkdir -p "$SM" && ( cd "$SM" && git init -q && git config user.email t@t && git config user.name t && mkdir -p src lib pkg/ui/src &&
   echo a > src/jwt.ts && echo b > lib/old.py && echo c > pkg/ui/src/Button.tsx && git add -A && git commit -qm i &&

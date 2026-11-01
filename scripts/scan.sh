@@ -63,7 +63,7 @@ if has package.json; then
   elif haslock bun.lockb || haslock bun.lock; then PM=bun; RUN="bun run"; else PM=npm; RUN="npm run"; fi
   case "$(printf '%s\n' "$PKG" | awk -F'\t' '$1 == "packageManager" { print $3 }')" in pnpm*) PM=pnpm; RUN=pnpm;; yarn*) PM=yarn; RUN=yarn;; esac
   FW="$(printf '%s\n' "$PKG" | awk -F'\t' -v self="$SELF" '
-    BEGIN { n = split("next:Next.js nuxt:Nuxt react:React react-native:React_Native expo:Expo vue:Vue svelte:Svelte @sveltejs/kit:SvelteKit @angular/core:Angular solid-js:Solid astro:Astro @remix-run/react:Remix electron:Electron express:Express fastify:Fastify @nestjs/core:NestJS hono:Hono koa:Koa @trpc/server:tRPC graphql:GraphQL socket.io:Socket.IO prisma:Prisma @prisma/client:Prisma drizzle-orm:Drizzle mongoose:Mongoose sequelize:Sequelize typeorm:TypeORM @supabase/supabase-js:Supabase firebase:Firebase tailwindcss:Tailwind @reduxjs/toolkit:Redux zustand:Zustand @tanstack/react-query:TanStack_Query zod:Zod vite:Vite webpack:webpack typescript:TypeScript turbo:Turborepo nx:Nx jest:Jest vitest:Vitest mocha:Mocha @playwright/test:Playwright cypress:Cypress storybook:Storybook eslint:ESLint @biomejs/biome:Biome prettier:Prettier", P, " ")
+    BEGIN { n = split("next:Next.js nuxt:Nuxt react:React react-native:React_Native expo:Expo vue:Vue svelte:Svelte @sveltejs/kit:SvelteKit @angular/core:Angular solid-js:Solid astro:Astro @remix-run/react:Remix electron:Electron express:Express fastify:Fastify @nestjs/core:NestJS hono:Hono koa:Koa @trpc/server:tRPC graphql:GraphQL socket.io:Socket.IO bullmq:BullMQ prisma:Prisma @prisma/client:Prisma drizzle-orm:Drizzle mongoose:Mongoose sequelize:Sequelize typeorm:TypeORM @supabase/supabase-js:Supabase firebase:Firebase tailwindcss:Tailwind @reduxjs/toolkit:Redux zustand:Zustand @tanstack/react-query:TanStack_Query zod:Zod vite:Vite webpack:webpack typescript:TypeScript turbo:Turborepo nx:Nx jest:Jest vitest:Vitest mocha:Mocha ava:AVA @playwright/test:Playwright playwright:Playwright cypress:Cypress storybook:Storybook eslint:ESLint xo:XO @biomejs/biome:Biome prettier:Prettier", P, " ")
             for (i = 1; i <= n; i++) { split(P[i], kv, ":"); ORD[i] = kv[1]; NAME[kv[1]] = kv[2] } }
     $1 != "devDependencies" && ($2 in NAME) { RUNTIME[$2] = 1 }
     $1 ~ /ependencies$/ && ($2 in NAME) && !($2 in V) && $2 != self { v = $3; gsub(/^[\^~>=< ]+/, "", v); sub(/[[:space:]|].*/, "", v); V[$2] = v }
@@ -443,7 +443,8 @@ ROOTF="$(printf '%s\n' "$FILES" | awk -F/ 'NF == 1' | head -n 25 | sed 's/.*/`&`
 TOP_DIRS="$(printf '%s\n' "$DIRS" | awk -F'\t' 'NF && $2 !~ /^\./ && tolower($2) !~ /^(img|imgs|images?|assets|static|media|screenshots)$/ && n++ < 5 { print "`" $2 "/`" }' | join ', ')"
 
 # ---- tests & docs ----
-TESTS="$(printf '%s\n' "$FILES" | grep -E '(^|/)(tests?|__tests__|spec|e2e)/|[._-](test|spec)\.[A-Za-z]+$|_test\.go$|(^|/)test_[^/]*\.py$|(^|/)tests?\.(js|mjs|cjs|ts|py|rb|go|rs|php|sh|java|kt|swift|c|cc|cpp|exs?|lua)$')"
+TESTS="$(printf '%s\n' "$FILES" | grep -E '(^|/)(tests?|__tests__|spec|e2e)/|[._-](test|spec)\.[A-Za-z]+$|_test\.go$|(^|/)test_[^/]*\.py$|(^|/)tests?\.(js|mjs|cjs|ts|py|rb|go|rs|php|sh|java|kt|swift|c|cc|cpp|exs?|lua)$' |
+  grep -vE '\.(json|ya?ml|toml|ini|cfg|md|snap|lock)$')"   # tsconfig.test.json, fixtures and snapshots are not tests
 NTESTS="$(printf '%s\n' "$TESTS" | grep -c .)"
 TEST_DIRS="$(printf '%s\n' "$TESTS" | awk -F/ 'NF { k = (NF > 1) ? $1 "/" : "(root)"; c[k]++ } END { for (k in c) print c[k] "\t" k }' |
   sort -t"$TAB" -k1,1nr -k2,2 | head -n 5 | awk -F'\t' '{ print "`" $2 "` " $1 }' | join ', ')"
@@ -508,7 +509,8 @@ if [ -n "$MDESC" ] && { [ -z "$README_SUM" ] || [ "$(printf '%s' "$README_SUM" |
 GIT=""; ACTIVE=""
 if [ -n "$IS_GIT" ] && [ -n "$HEAD_SHA" ]; then
   remote="$(git remote get-url origin 2>/dev/null | sed -E 's#://[^@/]+@#://#')"
-  GIT="It is versioned with git: branch \`$(git rev-parse --abbrev-ref HEAD)\`, $(git rev-list --count HEAD) commits, last commit on $(git log -1 --format=%cs)${remote:+, remote \`$remote\`}."
+  nco="$(git rev-list --count HEAD 2>/dev/null)"; [ "$nco" = 1 ] && nco="1 commit" || nco="$nco commits"
+  GIT="It is versioned with git: branch \`$(git rev-parse --abbrev-ref HEAD)\`, $nco, last commit on $(git log -1 --format=%cs)${remote:+, remote \`$remote\`}."
   # leave out the oldest commit in view when it has no parent here (root commit, or the edge of a shallow CI clone):
   # it lists every file of the repo as changed
   NACT="$(git rev-list --count HEAD 2>/dev/null || echo 0)"; [ "$NACT" -gt 300 ] && NACT=300 || NACT=$((NACT - 1))

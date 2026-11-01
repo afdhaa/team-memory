@@ -78,6 +78,27 @@ your-project/
 ~/.agents/memory/user.md          # your own preferences, for every project
 ```
 
+**What it looks like:** [examples/](https://github.com/afdhaa/team-memory/tree/main/examples) has two
+complete `.memory/` folders. [ky](https://github.com/afdhaa/team-memory/tree/main/examples/ky/.memory)
+is the memory an agent wrote for the real [sindresorhus/ky](https://github.com/sindresorhus/ky) at
+one commit, fact-checked against its code, so you can check every line yourself (it is not from ky's
+maintainers). [tokoku-api](https://github.com/afdhaa/team-memory/tree/main/examples/tokoku-api/.memory)
+is a made-up shop backend that shows what only a team can add: rules from the user, a frozen area,
+a glossary, personal progress. Two entries from ky:
+
+```markdown
+<!-- gotchas.md -->
+1. **[2026-11-01] The type tests in `test-d/` fail with "Cannot find module 'ky'" until `distribution/` is built** #test #types @test-d/ (agent, seen: 1)
+   Why: `test-d/` files import `ky`, which resolves through `exports` in package.json to `distribution/index.d.ts`; verified: ran `npx tsc --project tsconfig.test.json` before and after `npm run build`.
+   Do instead: run `npm run build` first, or `npm test`, which builds before the type check.
+
+<!-- decisions.md -->
+- 2026-11-01 · Without a `shouldRetry` override, an error Ky does not recognise (…) is thrown at once instead of retried. (…) Found in a code comment in `#calculateRetryDelay()`, added by pull request 842 (commit eaf0b80, 2026-03-25). #retry @source/core/Ky.ts (agent, unconfirmed)
+```
+
+`@path` tags bring an entry up when someone edits that path, `#tags` when a prompt mentions the word,
+and `(user)` or `(agent, unconfirmed)` says who stands behind it.
+
 | Command | Effect |
 |---|---|
 | `npx team-memory` | everything above, then a scan of the repository |

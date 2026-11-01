@@ -98,7 +98,7 @@ When lint reports issues, `index.md` passes ~150 lines, a file passes ~300 lines
 | "scan ulang / rescan" | `mem.sh scan`, then update the summary, Key facts and `codebase.md` sections if needed. |
 | "jangan dicatat / don't save this" | Don't write it; remove it from the inbox. |
 | "quiz me / kuis saya [about X]" | See *Quiz* below. |
-| "where is memory missing? / lengkapi memori" | `mem.sh gaps`; show the top 3 folders with no memory. For the one the user picks, read its main files and propose 2–5 entries (gotchas, decisions with their reason, glossary terms) as `(agent, unconfirmed)`; write what the user approves. |
+| "where is memory missing? / lengkapi memori" | `mem.sh gaps`; show the top 3 folders with no memory. For the one the user picks, read its main files and write 2–5 entries (gotchas, decisions with their reason, glossary terms) as `(agent, unconfirmed)`; in confirm mode propose them and write what the user approves. |
 | "X itu artinya … / X means …" | `topics/glossary.md`, one line (format in `references/writing.md`), confirm in one line. |
 
 ## Quiz

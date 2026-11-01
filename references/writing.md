@@ -163,6 +163,8 @@ Short paragraphs or numbered steps describing the flow, naming the key files and
 ## Rules and pitfalls
 - Full-sentence rules, each with its reason.
 ```
+A topic page written from reading the code says so under its title, so readers know how far to
+trust it: `Source: read in the code at commit 3541888 (agent, unconfirmed); points marked verified were run.`
 
 **Procedure** (`procedures/<name>.md`) — a recipe someone can follow without help:
 ```

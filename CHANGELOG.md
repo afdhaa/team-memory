@@ -3,6 +3,37 @@
 All notable changes. Versions follow [semver](https://semver.org): minor for new features,
 patch for fixes and reorganisation.
 
+## 4.3.3
+- New: two complete examples in `examples/` (on GitHub, not in the npm package). `examples/ky/` is the
+  memory an agent wrote for the real sindresorhus/ky at commit 3541888 by following the skill, then
+  fact-checked by a second agent against the code (84 claims, none wrong, 14 made exact), so anyone
+  can check it; it is not from ky's maintainers. `examples/tokoku-api/` is a made-up shop backend that
+  shows what only a team adds: rules from the user, `#hold`, a superseded decision, a glossary, a
+  release procedure and the personal files. The README links both and quotes two ky entries.
+- Found while writing the ky example:
+  - The quiz treated `#842` in a sentence as a tag and cut it out; only the tags at the end of an
+    entry are tags now.
+  - Lint's "checked every case?" notes came back on every run; they now cover only lines not yet
+    committed, and "not only …" is no longer read as a claim about every case.
+  - `mem.sh search` listed section headings ("## Blocked / waiting on" for "wait").
+  - `mem.sh gaps` counted the folder names the scan writes into Key facts as memory; a folder with
+    fewer than 3 commits is no longer listed as busy.
+  - Scan: `tsconfig.test.json` was counted as a test file; AVA, XO and Playwright are detected.
+  - Docs: an entry's date is the day it is written (an older decision found in history keeps its own
+    date in the text); a decision found in a comment or commit is `(agent, unconfirmed)` and says
+    where; "lengkapi memori" writes in auto mode and proposes in confirm mode; a topic page written
+    from the code says so under its title.
+- Scan: BullMQ is detected in Node.js projects; "1 commit" instead of "1 commits".
+- Fix (4.3.2): a two-letter word in a prompt ("update docs ya") raised the bar for prompt recall, so
+  a memory line matching the one real term was no longer recalled. Two-letter words now only find
+  `#tags` and do not count towards the bar; "sini", "situ" and "mana" are ignored like other filler.
+- Fix: in memory installed for one package of a monorepo (`--here`), `mem.sh gaps` used paths from
+  the repository root, so every folder looked uncovered, and lint reported a renamed file as deleted.
+- Fix: the quiz no longer reads "since" as a reason ("v2 API since March" is a date, not a why).
+- The update check retries after an hour when it could not finish (offline, or stopped together with
+  the hook), and runs in its own session where `setsid` exists. Lint lists the repository's files only
+  when a mentioned file is missing, which saves time in large repositories.
+
 ## 4.3.2
 - Update notice: when a newer version is on npm, the session-start status line says so
   (`update available: v4.3.1 → v4.3.2 (npx team-memory@latest)`) and the agent tells the user once a

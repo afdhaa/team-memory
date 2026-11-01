@@ -119,7 +119,7 @@ search)
     /^<!-- scan:start/ { gen = 1; next } gen { if (/^<!-- scan:end/) gen = 0; next }   # generated facts: read codebase.md instead
     /^[[:space:]]*<!--/ { inc = 1 } inc { if (/-->/) inc = 0; next }
     /^[[:space:]]*$/ || /^>/ { next }
-    /^#+ / && NF <= 4 { next }   # bare headings ("## Notes") are not answers
+    /^#{1,2} / || (/^#+ / && NF <= 4) { next }   # section headings ("## Blocked / waiting on") are not answers; ### decision titles are
     { l = tolower($0); s = 0
       for (i = 1; i <= n; i++) if (W[i] != "" && index(l, W[i])) s++
       f = FILENAME; if (index(f, home) == 1) f = "~" substr(f, length(home) + 1)
@@ -217,17 +217,18 @@ lint)
   # code that was renamed or deleted. Git history says which: renamed → the new path, deleted → the commit.
   # Left out: lines that already say it is history, generated or ignored paths (dist/…), files that exist
   # under a sub-package (`src/x.ts` written from inside packages/ui), and `npm run` scripts.
-  REPO_FILES="${REPO_FILES:-$( { git ls-files -co --exclude-standard 2>/dev/null || find . -type f ! -path './.git/*' | sed 's#^\./##'; } )}"
   IS_GIT=""; git rev-parse --git-dir >/dev/null 2>&1 && IS_GIT=1
   ns=0
   while IFS=$'\t' read -r loc p; do
     [ -e "$ROOT/${p%/}" ] && continue
+    # the file list only when a mention is missing (a large monorepo lists hundreds of thousands)
+    [ -n "$REPO_FILES" ] || REPO_FILES="$( { git ls-files -co --exclude-standard 2>/dev/null || find . -type f ! -path './.git/*' | sed 's#^\./##'; } )"
     printf '%s\n' "$REPO_FILES" | grep -qE "(^|/)$(printf '%s' "${p%/}" | sed 's/[][\.*^$+?(){}|]/\\&/g')(/|$)" && continue
     [ -n "$IS_GIT" ] && git check-ignore -q --no-index "${p%/}" 2>/dev/null && continue
     case "$p" in */*.*|*.*) ;; *) [ -d "$ROOT/${p%%/*}" ] || continue ;; esac   # `react-dom/client`, `origin/main`: not paths here
     # the commit that removed it (a path limit hides renames, so the rename is read from that commit)
     c=""; to=""; [ -n "$IS_GIT" ] && c="$(git log -1 --format='%h %ad' --date=short --diff-filter=D -- "${p%/}" 2>/dev/null)"
-    [ -n "$c" ] && to="$(git show -M --name-status --format= "${c%% *}" 2>/dev/null | awk -F'\t' -v p="${p%/}" '$1 ~ /^R/ && ($2 == p || index($2, p "/") == 1) { t = $3; if ($2 != p) t = substr($3, 1, length($3) - length($2) + length(p)); print t; exit }')"
+    [ -n "$c" ] && to="$(git show -M --relative --name-status --format= "${c%% *}" 2>/dev/null | awk -F'\t' -v p="${p%/}" '$1 ~ /^R/ && ($2 == p || index($2, p "/") == 1) { t = $3; if ($2 != p) t = substr($3, 1, length($3) - length($2) + length(p)); print t; exit }')"
     case "$c:$to" in
       ?*:?*) w "stale? $loc mentions \`$p\`, renamed to \`$to\` in $c → update the entry, or retire it" ;;
       ?*:) w "stale? $loc mentions \`$p\`, deleted in $c → update the entry, or retire it (or write that it is history)" ;;
@@ -287,18 +288,30 @@ lint)
         n = split(l, S, /[.!?]+[)"`]*[[:space:]]+/)
         for (i = 1; i <= n; i++) if ((c = words(S[i])) > 40) { print FILENAME ":" FNR ": sentence of " c " words (aim for 30) → split it: " substr(S[i], 1, 60); break } }
       END { flush() }' ${FILES[@]+"${FILES[@]}"} /dev/null | head -n 8)
-  # claims about the whole codebase in topic files (writing rule 10): a reminder to check every case
-  while IFS= read -r m; do echo "ℹ $m"; done < <(awk '
+  # claims about the whole codebase in topic files (writing rule 10): a reminder to check every case.
+  # Only for lines not committed yet (a new or untracked file: all of it): once checked and committed,
+  # a line is not asked about again.
+  TOPICS="$(printf '%s\n' ${FILES[@]+"${FILES[@]}"} | grep '^\.memory/topics/')"; NEWL="*"
+  if [ -n "$TOPICS" ] && git rev-parse --verify -q HEAD >/dev/null 2>&1; then
+    NEWL="$(for f in $TOPICS; do
+      if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        git diff -U0 HEAD -- "$f" 2>/dev/null | awk -v f="$f" '/^@@/ { split($3, a, ","); s = substr(a[1], 2) + 0; n = (a[2] == "") ? 1 : a[2] + 0; for (i = 0; i < n; i++) print f ":" s + i }'
+      else echo "$f:*"; fi; done)"
+  fi
+  while IFS= read -r m; do echo "ℹ $m"; done < <(NEWL="$NEWL" awk '
+      BEGIN { all = (ENVIRON["NEWL"] == "*"); n = split(ENVIRON["NEWL"], A, "\n"); for (i = 1; i <= n; i++) N[A[i]] = 1 }
+      !all && !((FILENAME ":*") in N) && !((FILENAME ":" FNR) in N) { next }
       FNR == 1 { inc = 0; gen = 0; code = 0 }
       /^<!-- scan:start/ { gen = 1; next } gen { if (/^<!-- scan:end/) gen = 0; next }
       /^[[:space:]]*(```|~~~)/ { code = !code; next } code { next }
       /^[[:space:]]*<!--/ { inc = 1 } inc { if (/-->/) inc = 0; next }
       /^#/ || /^>/ || /unconfirmed/ { next }
       { l = " " tolower($0) " "; gsub(/`[^`]*`/, "", l)
+        gsub(/not only|only if|only when/, "", l)   # "not only X", conditions: not claims about every case
         if (match(l, /[^a-z](all|each|every|only|always|never)[^a-z]|[^a-z]one [a-z]+ per[^a-z]/)) {
-          w = substr(l, RSTART + 1, RLENGTH - 2)
-          print FILENAME ":" FNR ": \"" w "\" — checked every case? name the exceptions or write what you saw: " substr($0, 1, 50) } }' \
-      $(printf '%s\n' ${FILES[@]+"${FILES[@]}"} | grep '^\.memory/topics/') /dev/null | head -n 5)
+          w = substr(l, RSTART + 1, RLENGTH - 2); x = substr($0, 1, 60); if (length($0) > 60) { sub(/[ \t][^ \t]*$/, "", x); x = x "…" }
+          print FILENAME ":" FNR ": \"" w "\" — checked every case? name the exceptions or write what you saw: " x } }' \
+      $TOPICS /dev/null | head -n 5)
   # stale gotchas: older than PM_STALE_DAYS, seen ≤ 1, not #hold, never injected by hooks in that period
   today="$(date +%Y-%m-%d)"
   if [ -f .memory/gotchas.md ]; then

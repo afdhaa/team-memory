@@ -10,3 +10,5 @@
 > block) until the user confirms them. Insert new decisions right below this header.
 > Add `#hold` to freeze an area: agents must ask before editing files under its @path.
 > Never delete reversed decisions — mark them `~~…~~ superseded YYYY-MM-DD → see …`.
+> The date is the day the entry is written. A decision found in history keeps its own date in the
+> text ("decided in pull request 842, March 2026").

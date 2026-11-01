@@ -2,7 +2,7 @@
 name: team-memory
 description: Long-term project memory for coding agents, kept as plain Markdown in the repo (`.memory/`) and shared by the team and every agent, plus personal preferences in `~/.agents/memory/user.md`. Use at the START of every task (recall rules, decisions, gotchas, progress; triage `.memory/inbox.md`), on each NEW REQUEST (search related memory), BEFORE EDITING an area (check entries tagged for its path) and BEFORE FINISHING (record decisions, user corrections, gotchas, procedures, progress). In a new project without `.memory/`, run `mem.sh scan` first. Also use when the user says "remember this", "ingat ini", "catat", "jangan lupa", "untuk semua project", "forget that", "lupakan", "what do you know about X", "update memory", "review memory", "cek memori", "rapikan memori", "scan ulang", "quiz me", "kuis saya", "freeze this area", corrects how you did something, or a message starts with "[team-memory]". Trigger whenever the repo has a `.memory/` folder.
 metadata:
-  version: 4.3.2
+  version: 4.3.3
 ---
 
 # Team Memory
@@ -160,7 +160,9 @@ What the user said is confirmed: `(user, …)`. What **you** concluded starts as
    only on first use" stays unconfirmed until something ran it).
 
 A decision **you** made (design, library) needs the user's approval; 2 and 3 don't count. A decision
-the user asked for is `(user)`; if you chose the details, say so in `Why:`. A proposal the user approved
+the user asked for is `(user)`; if you chose the details, say so in `Why:`. A decision you only found
+(a code comment, a commit, a pull request) is `(agent, unconfirmed)`, says where you found it, and is
+dated today. A proposal the user approved
 keeps its source (`agent`) and drops `unconfirmed`. Never turn an unconfirmed entry
 into a Rule or a `#hold`. Lessons you found yourself become Rules only at `seen: 3` or when the user
 confirms. `mem.sh review` lists unconfirmed entries; lint flags those older than 30 days.

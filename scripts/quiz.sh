@@ -51,12 +51,13 @@ POOL="$(awk -v today="$TODAY" -v since="$SINCE" -v at="$AT" -v hist="$HIST" -v s
     date = ""; if (match(t, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) date = substr(t, RSTART, 10)
     if (date == "" && match(src, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) date = substr(src, RSTART, 10)
     hold = (t ~ /#hold/)
-    tags = ""; paths = ""; x = t
+    # tags and @paths are the run at the end of the line; "#842" or `@types/node` in the text stay text
+    tags = ""; paths = ""; x = ""
+    if (match(t, /([ \t]+[#@][^ \t`]+)+[ \t]*$/)) { x = substr(t, RSTART); t = substr(t, 1, RSTART - 1) }
     while (match(x, /(^|[ \t(])[#@][^ \t,;)]+/)) {
       w = trim(substr(x, RSTART, RLENGTH)); sub(/^\(/, "", w); x = substr(x, RSTART + RLENGTH); sub(/[.:]+$/, "", w)
       if (w ~ /^@/) paths = paths (paths != "" ? ", " : "") "`" substr(w, 2) "`"
       else if (w != "#hold") tags = tags (tags != "" ? ", " : "") substr(w, 2) }
-    gsub(/(^|[ \t(])[#@][^ \t,;)]+/, "", t)
     sub(/^\*\*\[[0-9-]+\][ \t]*/, "", t); sub(/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][ \t]*(·|-|—|:)?[ \t]*/, "", t)
     term = ""; if (k == "term" && match(t, /^\*\*[^*]+\*\*/)) { term = substr(t, 3, RLENGTH - 4); t = substr(t, RLENGTH + 1); sub(/^[ \t]*(—|–|-|:)[ \t]*/, "", t) }
     gsub(/\*\*/, "", t); t = trim(t); sub(/[ \t]*[.;,]$/, "", t)
@@ -70,7 +71,7 @@ POOL="$(awk -v today="$TODAY" -v since="$SINCE" -v at="$AT" -v hist="$HIST" -v s
     about = paths; if (tags != "") about = (about != "" ? about " (" tags ")" : tags)
     why = ""; what = t
     if (body ~ /(^|\037)Why:/) { why = body; sub(/^.*(^|\037)Why:[ \t]*/, "", why) ; if (k == "gotcha") why = body }
-    else if (match(t, /(,|;)? (because|since|so that|karena|sebab|agar|supaya) /)) { what = substr(t, 1, RSTART - 1); why = substr(t, RSTART + RLENGTH) }
+    else if (match(t, /(,|;)? (because|so that|karena|sebab|agar|supaya) /)) { what = substr(t, 1, RSTART - 1); why = substr(t, RSTART + RLENGTH) }
     kind = k; sc = 1 + rand() * 2
     if (k == "term") { if (term == "" || t == "") return; q = "What does \"" term "\" mean in this project?"; a = t; topic = ""; sc += 1 }
     else if (hold) { kind = "hold"; q = "What must not be changed without asking first" (paths != "" ? " in " paths : "") ", and why?"; a = t (body != "" ? "\037" body : ""); sc += 3 }

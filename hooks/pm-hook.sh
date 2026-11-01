@@ -199,11 +199,15 @@ $sus"
   if [ "${PM_UPDATE_CHECK:-on}" != off ] && [ "$VIA" != plugin ]; then
     UC="${PM_UPDATE_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/team-memory}"
     if mkdir -p "$UC" 2>/dev/null; then
-      if [ -z "$(find "$UC/latest" -mmin -1440 2>/dev/null)" ]; then
-        touch "$UC/latest"   # one try a day, also when offline
-        ( v="$(curl -fsS -m 3 https://registry.npmjs.org/team-memory/latest 2>/dev/null || wget -qO- -T 3 https://registry.npmjs.org/team-memory/latest 2>/dev/null)"
-          v="$(printf '%s' "$v" | grep -oE '"version" *: *"[0-9]+\.[0-9]+\.[0-9]+"' | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
-          [ -n "$v" ] && printf '%s\n' "$v" > "$UC/latest.tmp" && mv "$UC/latest.tmp" "$UC/latest" ) </dev/null >/dev/null 2>&1 &
+      # a day old (or missing) → ask again, at most once an hour: offline, or killed with the hook, it retries later
+      if [ -z "$(find "$UC/latest" -mmin -1440 2>/dev/null)" ] && [ -z "$(find "$UC/checked" -mmin -60 2>/dev/null)" ]; then
+        touch "$UC/checked"
+        fetch='v="$( { curl -fsS -m 3 https://registry.npmjs.org/team-memory/latest || wget -qO- -T 3 https://registry.npmjs.org/team-memory/latest; } 2>/dev/null |
+          grep -oE "\"version\" *: *\"[0-9]+\.[0-9]+\.[0-9]+\"" | head -n1 | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")"
+          [ -n "$v" ] && printf "%s\n" "$v" > "$1/latest.tmp" && mv "$1/latest.tmp" "$1/latest"'
+        # its own session where possible, so an agent that ends the hook's process group does not end the check
+        if command -v setsid >/dev/null 2>&1; then setsid bash -c "$fetch" _ "$UC" </dev/null >/dev/null 2>&1 &
+        else nohup bash -c "$fetch" _ "$UC" </dev/null >/dev/null 2>&1 & fi
       fi
       have="$(sed -n 's/^  version: *//p' "$HOOK_DIR/../SKILL.md" 2>/dev/null | head -n1)"
       new="$(grep -oE '^[0-9]+\.[0-9]+\.[0-9]+$' "$UC/latest" 2>/dev/null | head -n1)"
@@ -250,7 +254,7 @@ prompt)
   [ "$AGENT" = copilot ] && emit_empty
   # (b) prompt-based recall: rank memory entries against the prompt
   terms="$(printf '%s' "$PROMPT" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9\n' ' ' | tr ' ' '\n' | awk '
-    BEGIN { split("the and for with that this from have what when where which will would could should there their them they then than into your you are was were been being can not but all any how why who use using make made also just like want need get got its it'"'"'s only first check add adds added support supports given like currently still yet also already some more yang dan atau dengan untuk dari pada ini itu ada akan bisa saya kamu anda kita kami mau tidak juga sudah belum lagi apa apakah bagaimana gimana kenapa buat bikin tolong coba dong deh sih nya aja saja jadi kalau kalo karena agar supaya seperti dalam oleh lebih sama harus perlu baru tambahkan tambah ubah ubahkan ganti hapus buatkan perbaiki benerin cek lihat kasih pakai pake add fix update change please thanks makasih tolong", S, " "); for (i in S) stop[S[i]] = 1 }
+    BEGIN { split("the and for with that this from have what when where which will would could should there their them they then than into your you are was were been being can not but all any how why who use using make made also just like want need get got its it'"'"'s only first check add adds added support supports given like currently still yet also already some more yang dan atau dengan untuk dari pada ini itu ada akan bisa saya kamu anda kita kami mau tidak juga sudah belum lagi apa apakah bagaimana gimana kenapa sini situ mana buat bikin tolong coba dong deh sih nya aja saja jadi kalau kalo karena agar supaya seperti dalam oleh lebih sama harus perlu baru tambahkan tambah ubah ubahkan ganti hapus buatkan perbaiki benerin cek lihat kasih pakai pake add fix update change please thanks makasih tolong", S, " "); for (i in S) stop[S[i]] = 1 }
     length($0) == 2 && !seen[$0]++ { if (++m <= 6) print; next }   # "po", "qa": matched only as #tags below
     length($0) >= 3 && !($0 in stop) && !seen[$0]++ { print; if (++n >= 12) exit }' | tr '\n' ' ')"
   hits=""
@@ -277,7 +281,8 @@ prompt)
       }
       END {
         for (i = 1; i <= n; i++) { low = tolower(U[i]); for (t = 1; t <= nt; t++) if (length(T[t]) < 3 ? low ~ ("#" T[t] "([^a-z0-9]|$)") : low ~ ("(^|[^a-z0-9])" T[t])) { M[i, t] = 1; DF[t]++ } }
-        need = (nt >= 2) ? 2 : 1
+        nl = 0; for (t = 1; t <= nt; t++) if (length(T[t]) >= 3) nl++   # two-letter words only find #tags: they must not raise the bar
+        need = (nl >= 2) ? 2 : 1
         for (i = 1; i <= n; i++) {
           s = 0; c = 0; tag = 0; low = tolower(U[i])
           for (t = 1; t <= nt; t++) if ((i, t) in M) { s += log(1 + n / DF[t]); c++; if (index(low, "#" T[t]) || index(low, "/" T[t])) { s += 1; tag = 1 } }
