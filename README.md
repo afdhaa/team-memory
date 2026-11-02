@@ -203,7 +203,7 @@ From the project root:
     M=.agents/skills/team-memory/scripts/mem.sh
     bash $M search pricing product   # ranked search through project and user memory
     bash $M path src/api/            # entries that apply to a file or folder
-    bash $M lint                     # size, secrets, stale or duplicate entries, files renamed or deleted since, filler words
+    bash $M lint                     # size, secrets, stale, duplicate or contradicting entries, renamed files, missing @paths
     bash $M review                   # the agent's unconfirmed entries, oldest first
     bash $M scan                     # re-index the repository into topics/codebase.md
     bash $M changelog                # how this project records changes for its users

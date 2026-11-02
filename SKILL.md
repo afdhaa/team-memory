@@ -2,7 +2,7 @@
 name: team-memory
 description: Long-term project memory for coding agents, kept as plain Markdown in the repo (`.memory/`) and shared by the team and every agent, plus personal preferences in `~/.agents/memory/user.md`. Use at the START of every task (recall rules, decisions, gotchas, progress; triage `.memory/inbox.md`), on each NEW REQUEST (search related memory), BEFORE EDITING an area (check entries tagged for its path) and BEFORE FINISHING (record decisions, user corrections, gotchas, procedures, progress). In a new project without `.memory/`, run `mem.sh scan` first. Also use when the user says "remember this", "ingat ini", "catat", "jangan lupa", "untuk semua project", "forget that", "lupakan", "what do you know about X", "update memory", "review memory", "cek memori", "rapikan memori", "scan ulang", "quiz me", "kuis saya", "freeze this area", corrects how you did something, or a message starts with "[team-memory]". Trigger whenever the repo has a `.memory/` folder.
 metadata:
-  version: 4.3.3
+  version: 4.3.4
 ---
 
 # Team Memory
@@ -89,7 +89,8 @@ Write **when it happens**, not only at the end:
   including each "please confirm" you wrote, is under Blocked in `progress.md`. A choice that departs
   from AGENTS.md, CONTRIBUTING or the docs is not a decision: it is a Blocked question quoting them. A chat reply, `progress.md` and a clause inside a decision are not
   where a teammate looks for a pitfall: give each its own entry. Then run `mem.sh lint` and act on
-  every `checked every case?` note (confirm it with `grep`, or rewrite the sentence).
+  every `checked every case?` note (confirm it with `grep`, or rewrite the sentence), every missing
+  `@path` note (add the tag) and every `possible contradiction` (supersede the older entry, or ask).
 - **The project's own instructions come first** (AGENTS.md, CONTRIBUTING.md, `docs/`). Don't copy
   them; record only what they lack and point to them. If the user contradicts them, ask which wins.
 - **Filter:** *would a fresh agent next week waste time or make a mistake without this?* Don't store
@@ -119,7 +120,8 @@ People read `.memory/` too, in PR reviews. Each entry:
    One fact in one place: elsewhere point to it instead of writing it again.
    "All", "every", "each", "only" are claims about the whole codebase: check every case first, or
    name what you saw.
-5. Tags at the end of the title line. When the user writes in another language, every entry made
+5. Tags at the end of the title line, with an `@path` for each file or folder the entry is about:
+   that is what brings it up when someone edits there. When the user writes in another language, every entry made
    from their words gets one or two of those words as tags (said "upload produk" → `#upload #produk`):
    recall in their language depends on it.
 

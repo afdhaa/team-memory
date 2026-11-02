@@ -1,6 +1,6 @@
 {
   "name": "team-memory",
-  "version": "4.3.3",
+  "version": "4.3.4",
   "description": "Long-term memory for coding agents: decisions, rules and pitfalls kept as plain Markdown in your repo, reviewed by your team in pull requests. Works with Claude Code, Codex, OpenCode, Antigravity and Pi/omp. No server; memory never leaves your repo.",
   "keywords": [
     "ai-agents",

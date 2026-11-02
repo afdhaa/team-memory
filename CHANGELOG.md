@@ -3,6 +3,20 @@
 All notable changes. Versions follow [semver](https://semver.org): minor for new features,
 patch for fixes and reorganisation.
 
+## 4.3.4
+- `mem.sh lint` suggests missing `@path` tags: an entry that names `source/core/Ky.ts` without an
+  `@path` covering it never comes up when that file is edited. Ignored paths (build output) are left
+  out. SKILL.md: tag each file or folder an entry is about.
+- `mem.sh lint` warns about contradicting entries on the same subject (a shared `#tag` or `@path`, or
+  two project-wide Rules): one says to use something the other rules out ("date-fns, not moment"
+  against "use moment"), or they pick different tools of one kind (pnpm against npm). The agent marks
+  the older one superseded or asks the user. An entry that states an exception ("only for",
+  "kecuali", "see decisions.md") is left alone. No false warnings on the memory of twelve test repos.
+- `mem.sh review` also lists topic and procedure pages written from reading the code: their
+  `Source: … (agent, unconfirmed)` line puts the whole page up for review.
+- Supply-chain scanners: the self-test no longer carries a download piped into a shell or a
+  prompt-injection sentence in one piece; it assembles both test lines when it runs.
+
 ## 4.3.3
 - New: two complete examples in `examples/` (on GitHub, not in the npm package). `examples/ky/` is the
   memory an agent wrote for the real sindresorhus/ky at commit 3541888 by following the skill, then
