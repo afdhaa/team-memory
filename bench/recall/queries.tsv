@@ -1,0 +1,77 @@
+project	query	file	needle	kind
+ky	why does my POST not retry after a 503?	topics/retries.md	method must be in `retry.methods`	paraphrase
+ky	my own custom error thrown inside a wrapped fetch just bubbles straight up, there is never a second attempt	decisions.md	is thrown at once instead of retried	paraphrase
+ky	type tests break on a fresh clone before anything has been compiled	gotchas.md	Cannot find module 'ky'	paraphrase
+ky	my error logging never fires when I bail out of a retry from the hook	gotchas.md	error thrown from a `beforeRetry` hook	paraphrase
+ky	server says wait 10 seconds but my overall deadline is 300ms, what happens then?	topics/retries.md	With `totalTimeout`, a wait	paraphrase
+ky	how long does it pause between attempts out of the box?	topics/retries.md	The computed backoff is `retry.delay	paraphrase
+ky	requests that hit the deadline are never repeated, is that on purpose?	topics/retries.md	`TimeoutError` is retried when	paraphrase
+ky	the request object I read in the error path is not the one that actually went over the wire	gotchas.md	is an unsent clone	paraphrase
+ky	a payload too large response is not attempted again but 503 is	topics/retries.md	Otherwise `413` is not retried	paraphrase
+ky	add Safari's network error message so it gets retried	gotchas.md	thrown as a plain `TypeError`	task
+ky	support a new rate limit header for computing the retry wait	topics/retries.md	The retry timing header is `Retry-After`	task
+ky	let beforeRetry hooks change the timeout option for the following attempts	topics/retries.md	return `{options}` to change `timeout`	task
+ky	export a new helper function from the package	topics/codebase.md	public entry point and the list	task
+ky	add a new error class for invalid JSON bodies	topics/codebase.md	error classes; `HTTPError`	task
+ky	write a test for the new retry behaviour against a local server	topics/codebase.md	ava tests named by feature	task
+ky	force a retry from afterResponse when the body says try again, even for a POST	topics/retries.md	A `ForceRetryError` from `ky.retry()`	task
+ky	add randomness to the retry delays so clients don't all hit at once	topics/retries.md	`jitter: true` replaces it	task
+ky	add a new hook that runs before the Request object is built	topics/codebase.md	Every request goes through `Ky.create()`	task
+ky	kenapa request saya nggak di-retry pas pakai throwHttpErrors false ya?	topics/retries.md	No retry happens when the response	indonesian
+ky	test-d gagal terus, katanya module ky nggak ketemu	gotchas.md	The type tests in `test-d/` fail	indonesian
+ky	batas maksimal retry default berapa sih?	topics/retries.md	The retry count must be below	indonesian
+ky	timeout pas baca .json() kok nggak di-retry ya	topics/retries.md	Timeouts and dropped connections while	indonesian
+ky	mau bikin beforeRetry hook yang balikin Response dari cache, bisa nggak?	topics/retries.md	return a `Response` to use as-is	indonesian
+ky	kalau ky ke-bundle dua kali, ky.stop masih kebaca nggak?	topics/codebase.md	Values that must be recognised across	indonesian
+ky	alur request di Ky.ts dari hook sampai fetch gimana ya	topics/codebase.md	`#run()` drives one request	indonesian
+ky	tolong tambahin pesan network error dari runtime baru dong	gotchas.md	A network failure whose message	indonesian
+ky	where's Retry-After parsing	topics/codebase.md	Supporting code: `source/core/	short
+ky	stop retrying from hook	topics/retries.md	cancel the retry by throwing	short
+ky	I'm returning a mocked Response with status 500 from my beforeRetry hook in tests and expected Ky to retry it again up to the limit, but it throws HTTPError straight away; is that intended or a bug?	topics/retries.md	returned by a `beforeRequest` or	long
+ky	Before I refactor the option merging code I want to understand how instance defaults from ky.create and per-call options get combined, where that lives in the source tree, and whether setup errors throw synchronously	topics/codebase.md	Instance defaults and per-call options	long
+ky	add a GraphQL client wrapper on top of ky	-	-	negative
+ky	set up a Docker compose file for local development	-	-	negative
+ky	add proxy agent support for corporate proxies in Node	-	-	negative
+ky	migrate the eslint config to flat config	-	-	negative
+ky	add cookie jar support for Node	-	-	negative
+ky	bikin website dokumentasi pakai Docusaurus dong	-	-	negative
+ky	add HTTP/3 support	-	-	negative
+ky	translate the readme into Japanese	-	-	negative
+tokoku-api	owner complains his payout is lower than his card sales for the day	gotchas.md	payout is short by the gateway fee	paraphrase
+tokoku-api	Vitest blows up about missing tables right after git pull	gotchas.md	relation does not exist	paraphrase
+tokoku-api	I edited a background job but it still runs the old code	gotchas.md	The worker does not pick up code changes	paraphrase
+tokoku-api	tablet showed success but can we just mark the sale paid from the app's own callback?	topics/payments.md	Never mark a sale as paid	paraphrase
+tokoku-api	we got the same gateway callback twice, will the sale be counted double?	topics/payments.md	The webhook can arrive twice;	paraphrase
+tokoku-api	gateway amount comes in as a string with decimals, how do I convert it	topics/payments.md	parse them with `Money.fromGateway()`	paraphrase
+tokoku-api	why isn't stock reserved when the cashier scans a barcode?	decisions.md	Stock is checked when the sale is saved	paraphrase
+tokoku-api	what time does the bank payout run and which day does it cover	decisions.md	The settlement job runs at 02:00 WIB	paraphrase
+tokoku-api	what counts as an active customer for the dashboard numbers	topics/glossary.md	**Member aktif**	paraphrase
+tokoku-api	add a scheduled job that emails weekly sales summaries	decisions.md	BullMQ on the existing Redis	task
+tokoku-api	fix the rounding in the settlement fee calculation	decisions.md	Freeze `src/payments/settlement/`	task
+tokoku-api	record supplier returns as negative lines on the purchase order	decisions.md	are a separate table, not negative	task
+tokoku-api	add a new return type for damaged goods	gotchas.md	A return must cite the supplier's	task
+tokoku-api	test the low-stock WhatsApp alert against staging	gotchas.md	Do not send WhatsApp or email	task
+tokoku-api	add a new payment endpoint for the tablet to start an e-wallet charge	topics/payments.md	The tablet starts a payment with	task
+tokoku-api	ship the merged PRs as a new version	procedures/release.md	Bump the version: `npm version minor`	task
+tokoku-api	show supplier prices on the staff till screen	topics/glossary.md	the only one that sees payouts	task
+tokoku-api	harden the signature check on the gateway webhook handler	topics/payments.md	the signature with `PAYMENT_GATEWAY_KEY`	task
+tokoku-api	bikin laporan retur ke supplier	topics/glossary.md	a return of goods to a supplier	indonesian
+tokoku-api	deploy-nya gagal, gimana cara rollback ya?	procedures/release.md	roll both services back	indonesian
+tokoku-api	migrasi kemarin salah, bisa di-rollback lewat Railway nggak?	procedures/release.md	A migration is not rolled back by that	indonesian
+tokoku-api	release notes ditulis pakai bahasa apa sih?	procedures/release.md	Write the release notes	indonesian
+tokoku-api	tolong cek kenapa setoran ke toko kurang dikit dong	gotchas.md	A shop's payout is short	indonesian
+tokoku-api	stok opname selisihnya disimpan di mana ya?	topics/glossary.md	**Stok opname**	indonesian
+tokoku-api	PO itu pre-order dari customer atau gimana?	topics/glossary.md	Purchase Order from a shop to a supplier	indonesian
+tokoku-api	settlement tuh maksudnya bayar invoice supplier ya?	topics/glossary.md	the nightly payout of a shop's card	indonesian
+tokoku-api	check migrations before release	procedures/release.md	npx prisma migrate status	short
+tokoku-api	did the deploy work?	procedures/release.md	`GET /health` shows the new version	short
+tokoku-api	I'm writing tests for the nightly payout job and need to know exactly which sales get summed up, at what time it runs, and what gets subtracted before the money goes to the shop's bank account	topics/payments.md	the `settle-daily` job	long
+tokoku-api	Before I start on the card payment flow, can you explain at a high level how cash, card and QRIS payments differ in our system and how the money eventually ends up with the shop owner?	topics/payments.md	Shops take cash, cards and QRIS	long
+tokoku-api	add dark mode to the admin dashboard	-	-	negative
+tokoku-api	integrate the Shopee marketplace API for product sync	-	-	negative
+tokoku-api	bikin fitur voucher diskon buat pelanggan dong	-	-	negative
+tokoku-api	set up Sentry error tracking for the API	-	-	negative
+tokoku-api	add CSV export for the product catalogue	-	-	negative
+tokoku-api	gimana cara reset password akun staff?	-	-	negative
+tokoku-api	add rate limiting to the login endpoint	-	-	negative
+tokoku-api	generate a PDF invoice for customers after checkout	-	-	negative

@@ -30,6 +30,13 @@ The agent writes a short summary of the project and how its code fits together. 
 reads memory at the start of each task and records what is worth keeping. Commit `.memory/` so your
 team and their agents share it.
 
+**Already have notes?** `bash .agents/skills/team-memory/scripts/mem.sh import` finds ADRs
+(`docs/adr/`), CLAUDE.md, AGENTS.md, Cursor, Cline and Windsurf rules, and other tools' memory
+(Cline's `memory-bank/`, Serena, `.agent-memory/`), and shows what it would bring in; `--write` adds
+the ADRs to `decisions.md` and the rest to the inbox. Then say *"triage the imported notes"*: the
+agent rewrites them as entries with their source, and asks before moving anything out of files that
+agents still read.
+
 ### As a Claude Code plugin
 
 In Claude Code:
@@ -178,6 +185,7 @@ for keywords, in English and Indonesian (including everyday forms such as "gausa
 | "don't save this" / "jangan dicatat" | nothing is stored |
 | "settlement here means …" / "PO di sini artinya …" | the term goes into `topics/glossary.md`; the agent reads it whenever the word comes up |
 | "where is memory missing?" / "lengkapi memori" | the busiest folders with no memory; the agent reads the one you pick and proposes entries |
+| "import our notes" / "impor catatan lama" | `mem.sh import`, then the agent turns ADRs, CLAUDE.md lines and rule files into entries with their source |
 | "quiz me" / "kuis saya" | five questions on the project's decisions, gotchas and rules; the agent checks your answers and offers to rewrite the entries you misread because of their wording |
 
 ### Auto or confirm mode
@@ -211,6 +219,7 @@ From the project root:
     bash $M stats                    # entries per file and how often hooks used them
     bash $M quiz                     # 5 questions with answers and sources (--md for an onboarding page)
     bash $M gaps                     # folders changed most in 90 days that memory says nothing about
+    bash $M import [--write]         # bring in ADRs, CLAUDE.md, Cursor/Cline/Windsurf rules, other tools' memory
     bash $M doctor                   # check the install: hooks, AGENTS.md block, pre-commit, gitignore
 
 **The scan** reads file names, manifests and git history — never the values in `.env` files — and
@@ -233,7 +242,8 @@ explanation above it ("How it fits together" and "Project layout"); a re-scan ne
 
 Turn the hooks off for a session with `export PM_HOOKS=off`. Tuning: `PM_RECALL_MAX` (entries per
 message, 5), `PM_MAX_NUDGES` (reminders per session, 3), `PM_STALE_DAYS` (120),
-`PM_UNCONFIRMED_DAYS` (30), `PM_USER_MEMORY` (path of `user.md`). When a newer version is on npm,
+`PM_UNCONFIRMED_DAYS` (30), `PM_USER_MEMORY` (path of `user.md`), `PM_RECALL_MIN` (off; e.g. 0.2 shows
+fewer lines for unrelated prompts but misses more answers — see `bench/recall/`). When a newer version is on npm,
 the status line at session start says so (`update available: v4.3.1 → v4.3.2`) and the agent tells
 you once a day; `PM_UPDATE_CHECK=off` turns that off. The Claude Code plugin is updated by its
 marketplace instead. The Gemini CLI, Cursor and Copilot
@@ -241,6 +251,44 @@ hooks follow those agents' documentation but are new: please
 [report](https://github.com/afdhaa/team-memory/issues) what does not work.
 
 ## Teams
+
+### Pull request check (GitHub Action)
+
+Memory is not only for agents. Add this workflow and every pull request gets one comment, updated on
+each push, with what the team wrote about the files it changes, so reviewers see it too:
+
+```yaml
+# .github/workflows/team-memory.yml
+name: team-memory
+on: pull_request
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: afdhaa/team-memory@v4.3.5
+        # with:
+        #   path: packages/api       # where .memory/ lives, for one package of a monorepo
+        #   fail-on-lint: true       # fail the check on memory lint problems
+```
+
+The comment lists:
+- **frozen areas** (`#hold`) the pull request touches;
+- **notes for the changed files**: rules, decisions, gotchas with their "Do instead", glossary terms,
+  each linked to its line;
+- **entries the pull request adds** to `.memory/`, so they are reviewed like code;
+- **memory problems it causes**: a contradiction with an existing entry, a file it renames or deletes
+  that memory still names, a secret.
+
+Nothing applies → no comment (`comment-when-empty: true` to always post). The same text goes to the
+job summary. A pull request from a fork gets a read-only token: then only the summary is written.
+
+### Working together
 
 - **Commit `.memory/` and review it in pull requests.** `mem.sh lint` exits with 1 on problems, so it
   can run in CI.

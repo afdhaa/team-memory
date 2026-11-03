@@ -10,6 +10,7 @@
 #   mem.sh stats                entry counts per file + injection hits
 #   mem.sh quiz [-n 5] [--md] [--since 30d] [@path]  questions from decisions, gotchas, Rules and the glossary, with answers
 #   mem.sh gaps [--days 90]     folders changed most lately that memory says little or nothing about
+#   mem.sh import [--write]     ADRs, CLAUDE.md/AGENTS.md, Cursor/Cline/Windsurf rules, other tools' memory → candidates
 #   mem.sh doctor               check the install: version, skill copies, hooks, AGENTS.md block, pre-commit, gitignore, old-name leftovers
 #   mem.sh approve <path> [min]  allow edits in a #hold area for N minutes (default 60) — only after the user approves
 #   mem.sh scan [--print]       index the repo into .memory/topics/codebase.md (+ Map, empty Key facts);
@@ -24,7 +25,7 @@ if [ ! -d "$ROOT/.memory" ]; then
   case "${1:-}" in
     secrets) exit 0 ;;   # nothing to scan (e.g. pre-commit after .memory/ was removed)
     doctor) ROOT="$ORIG" ;;   # also useful before .memory/ exists
-    help|-h|--help|"") sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    help|-h|--help|"") sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     scan) ROOT="$ORIG"
       if [ "$ROOT" = "/" ] || [ "$(cd "$ROOT" && pwd -P)" = "$(cd "$HOME" 2>/dev/null && pwd -P)" ]; then
         echo "Refusing to create .memory/ in $ROOT — run mem.sh scan from the project root." >&2; exit 1
@@ -132,7 +133,24 @@ search)
   | head -n "${PM_SEARCH_LIMIT:-12}" | cut -f3-
   ;;
 path)
-  [ $# -gt 0 ] || { echo "usage: mem.sh path <file-or-dir>"; exit 1; }
+  [ $# -gt 0 ] || { echo "usage: mem.sh path <file-or-dir>… (--tsv: one line per entry and path, for scripts)"; exit 1; }
+  TSV=""; [ "$1" = --tsv ] && { TSV=1; shift; }
+  if [ -n "$TSV" ] || [ $# -gt 1 ]; then
+    # many paths in one pass (the pull request check): "file:line <TAB> path" per hit
+    # run from the root with plain relative paths (the usual case): no per-path normalising, which costs a process each
+    PS="$(for a in "$@"; do case "$ORIG:$a" in ("$ROOT":/*|"$ROOT":*..*|"$ROOT":./*) q="$(relpath "$a")" ;; ("$ROOT":*) q="$a" ;; (*) q="$(relpath "$a")" ;; esac; printf '%s\n' "${q%/}"; done)"
+    PS="$PS" awk "$PM_HIT_AWK"'
+      BEGIN { tagre = ENVIRON["PM_TAG_RE"]; np = split(ENVIRON["PS"], PP, "\n") }
+      FNR == 1 { gen = 0 }
+      /^<!-- scan:start/ { gen = 1; next } gen { if (/^<!-- scan:end/) gen = 0; next }
+      { line = $0; delete got
+        while (match(line, tagre)) {
+          tag = substr(line, RSTART, RLENGTH); sub(/^[ \t(]*@/, "", tag); sub(/[.,;:]+$/, "", tag)
+          while (tag ~ /\)$/ && gsub(/\(/, "(", tag) < gsub(/\)/, ")", tag)) { tag = substr(tag, 1, length(tag) - 1); sub(/[.,;:]+$/, "", tag) }
+          sub(/\/$/, "", tag); line = substr(line, RSTART + RLENGTH)
+          for (i = 1; i <= np; i++) if (PP[i] != "" && !(i in got) && (pm_hit(PP[i], tag) || index(tag, PP[i] "/") == 1)) { got[i] = 1; print FILENAME ":" FNR "\t" PP[i] } } }' ${FILES[@]+"${FILES[@]}"} /dev/null
+    exit 0
+  fi
   p="$(relpath "$1")"; p="${p%/}"
   awk -v p="$p" "$PM_HIT_AWK"'
     BEGIN { tagre = ENVIRON["PM_TAG_RE"] }
@@ -492,6 +510,9 @@ quiz)
 gaps)
   bash "$HERE/gaps.sh" "$ROOT" "$@"
   ;;
+import)
+  bash "$HERE/import.sh" "$ROOT" "$@"
+  ;;
 scan)
   SECRET_RE="$SECRET_RE" bash "$HERE/scan.sh" "$ROOT" "${1:-}"
   ;;
@@ -502,6 +523,6 @@ stats)
   [ -f "$USER_MEM" ] && echo "user memory: $USER_MEM ($(wc -l < "$USER_MEM" | tr -d ' ') lines)"
   exit 0
   ;;
-help|-h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
-*) echo "unknown command: $cmd" >&2; sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 1 ;;
+help|-h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' ;;
+*) echo "unknown command: $cmd" >&2; sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 1 ;;
 esac

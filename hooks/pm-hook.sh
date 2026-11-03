@@ -97,17 +97,24 @@ mkdir -p "$STATE_BASE" 2>/dev/null && chmod 700 "$STATE_BASE" 2>/dev/null
 STATE="$STATE_BASE/$SID"
 mkdir -p "$STATE" 2>/dev/null || emit_empty
 
-# inject_new <lines "file:line: text"> → prints only lines not yet injected this session; records hits
+# inject_new <lines "file:line: text"> → prints only lines not yet injected this session; records hits.
+# Few processes: the hook runs on every prompt and edit (one cksum for all hits, the rest is bash).
 inject_new() {
-  local out="" h key
+  local out="" h t seen="" n=0 i f="${INJ:-$STATE/injected}" NL=$'\n'; local -a args=()
+  [ -f "$f" ] && seen="$(<"$f")"
   while IFS= read -r h; do
     [ -n "$h" ] || continue
-    key="$(hash "$h")"
-    grep -qx "$key" "${INJ:-$STATE/injected}" 2>/dev/null && continue
-    printf '%s\n' "$key" >> "${INJ:-$STATE/injected}"
-    printf '%s\t%s\n' "$TODAY" "$(hash "$(printf '%s' "$h" | sed 's/^[^:]*:[0-9]*: //; s/ ↳ .*//' | head -n1 | LC_ALL=C cut -c1-60)")" >> "$STATS" 2>/dev/null
-    out="$out$h"$'\n'
+    case "$NL$seen$NL" in *"$NL$h$NL"*) continue ;; esac
+    seen="$seen$NL$h"; printf '%s\n' "$h" >> "$f"
+    # stats key: the entry text without "file:line: " and " ↳ Why…", first 60 bytes (as mem.sh lint computes it)
+    t="${h#*:[0-9]*: }"; t="${t%% ↳ *}"
+    n=$((n + 1)); ( LC_ALL=C; printf '%s' "${t:0:60}" ) > "$STATE/st.$n" 2>/dev/null; args+=("$STATE/st.$n")
+    out="$out$h$NL"
   done
+  if [ "$n" -gt 0 ]; then
+    cksum "${args[@]}" 2>/dev/null | while read -r crc _ _; do printf '%s\t%s\n' "$TODAY" "$crc"; done >> "$STATS" 2>/dev/null
+    i=1; while [ "$i" -le "$n" ]; do rm -f "$STATE/st.$i"; i=$((i + 1)); done
+  fi
   printf '%s' "$out"
 }
 
@@ -179,13 +186,16 @@ $files"
 [team-memory] Memory writes: CONFIRM mode. Write the user's own corrections, standing instructions and explicit requests (\"remember…\", \"ingat…\", \"catat…\") right away. Everything you conclude yourself (gotchas, decisions, topics, procedures, codebase.md) you only propose; your own progress.md is personal, write it directly: at the end of a task, list the exact entries in one numbered message and write only what the user approves. Keep unanswered proposals in .memory/inbox.md."
   if [ -f "$MEM/inbox.md" ]; then
     n="$(grep -c '^- ' "$MEM/inbox.md" 2>/dev/null)"; n="${n:-0}"
+    ni="$(grep -c '^- imported · ' "$MEM/inbox.md" 2>/dev/null)"; ni="${ni:-0}"; n=$((n - ni))
+    [ "$ni" -gt 0 ] && ctx="$ctx
+[team-memory] .memory/inbox.md holds $ni line(s) imported from the project's existing notes (mem.sh import), each with its file:line and a guessed kind. When the user asks to triage them (or now, if they ran the import in this session): rewrite each one worth keeping as a proper entry in the right file, with the source \"(user, from FILE:LINE)\", skip duplicates, and keep rules that AGENTS.md, CLAUDE.md or a rule file already give to agents where they are (memory points to them); ask before removing anything from those files. Delete each imported line once handled."
     [ "$n" -gt 0 ] && ctx="$ctx
 [team-memory] .memory/inbox.md holds $n captured user remark(s) that may be corrections. Triage them now: record durable ones (gotchas.md User directives, index.md Rules, or user memory if they apply to every project), skip duplicates and one-offs, then empty the inbox. Report in one line."
     [ "$n" -gt 0 ] && [ "$MODE" = confirm ] && ctx="$ctx
 [team-memory] Confirm mode: lines marked \"proposed\" in the inbox are entries the user has not answered yet. Ask about them (and about the remarks) in one numbered message; write only what they approve."
   fi
   # every memory file, not only what is injected: a planted entry without @path would otherwise wait unseen
-  sus="$( { find -H "$MEM" -type f -name '*.md' ! -name README.md 2>/dev/null | while IFS= read -r f; do grep -ainE "$SUSPECT_RE" /dev/null "$f"; done
+  sus="$( { find -H "$MEM" -type f -name '*.md' ! -name README.md -exec grep -ainE "$SUSPECT_RE" /dev/null {} + 2>/dev/null   # one grep for all files
             [ -f "$USER_MEM" ] && grep -ainE "$SUSPECT_RE" /dev/null "$USER_MEM" 2>/dev/null; } | head -n 3 |
           while IFS= read -r l; do printf '%s\n' "${l#"$ROOT"/}"; done | cut -c1-160)"
   [ -n "$sus" ] && ctx="$ctx
@@ -263,7 +273,7 @@ prompt)
     while IFS= read -r f; do FILES+=("$f"); done < <(find -H "$MEM" -type f -name '*.md' ! -name index.md ! -name progress.md ! -name inbox.md ! -name README.md 2>/dev/null | sort)
     # index.md was injected at session start; rules added to it since then must be recalled too
     [ -f "$MEM/index.md" ] && [ -f "$STATE/start" ] && [ "$MEM/index.md" -nt "$STATE/start" ] && FILES+=("$MEM/index.md")
-    [ "${#FILES[@]}" -gt 0 ] && hits="$(LC_ALL=C awk -v terms="$terms" -v k="${PM_RECALL_MAX:-5}" -v root="$ROOT/" '
+    [ "${#FILES[@]}" -gt 0 ] && hits="$(LC_ALL=C awk -v terms="$terms" -v k="${PM_RECALL_MAX:-5}" -v minc="${PM_RECALL_MIN:-0}" -v root="$ROOT/" '
       BEGIN { nt = split(terms, T, " ") }
       FNR == 1 { inc = 0; gen = 0 }
       {
@@ -279,21 +289,44 @@ prompt)
         # background prose (topic paragraphs, the codebase overview) ranks below rules, decisions and gotchas
         P[n] = (FILENAME ~ /topics\/codebase\.md$/ || (FILENAME ~ /\/topics\// && line !~ /^([-*] |[0-9]+\. |### )/))
       }
+      function stem(w) {   # retries, retrying, retried → retr; payments → payment: a word start matches every form
+        if (length(w) < 5) return w
+        if (w ~ /(ies|ied|ying)$/) return substr(w, 1, length(w) - 3)
+        if (w ~ /ing$/ && length(w) >= 7) return substr(w, 1, length(w) - 3)
+        if (w ~ /(ed|es)$/ && length(w) >= 6) return substr(w, 1, length(w) - 2)
+        if (w ~ /[^s]s$/ || w ~ /y$/) return substr(w, 1, length(w) - 1)
+        return w }
       END {
-        for (i = 1; i <= n; i++) { low = tolower(U[i]); for (t = 1; t <= nt; t++) if (length(T[t]) < 3 ? low ~ ("#" T[t] "([^a-z0-9]|$)") : low ~ ("(^|[^a-z0-9])" T[t])) { M[i, t] = 1; DF[t]++ } }
+        # words a developer uses for the same thing, English and Indonesian: a prompt word also finds its group
+        ng = split("wait pause delay backoff jeda tunggu|deadline timeout totaltimeout|retry attempt again ulang|fail failure broken error gagal rusak|rollback revert undo kembalikan balikin|release deploy ship publish rilis|payout settlement setoran pencairan|twice double duplicate dobel|customer member pelanggan|test tests testing tes|money amount rupiah uang nominal|short missing kurang selisih|supplier vendor pemasok|return retur|shop store toko merchant|stock inventory stok|price harga|report laporan|message notification notif pesan|header headers|cache cached|install instal|bundle bundled copy", G, "|")
+        for (g = 1; g <= ng; g++) { m = split(G[g], W, " "); for (j = 1; j <= m; j++) grp[stem(W[j])] = G[g] }
+        for (t = 1; t <= nt; t++) { st = stem(T[t]); A[t] = st; if (st in grp) { m = split(grp[st], W, " "); for (j = 1; j <= m; j++) if (stem(W[j]) != st) A[t] = A[t] " " stem(W[j]) } }
+        for (i = 1; i <= n; i++) { low = tolower(U[i]); for (t = 1; t <= nt; t++) {
+          if (length(T[t]) < 3) { if (low ~ ("#" T[t] "([^a-z0-9]|$)")) { M[i, t] = 1; DF[t]++ }; continue }
+          # a short word only with a plain ending ("set" is not "settlement"), a longer one with up to 4 more letters
+          # ("product" finds "products", "after" is not "afterResponse"); no {n,m}: older awks lack it
+          m = split(A[t], W, " "); for (j = 1; j <= m; j++)
+            if (low ~ ("(^|[^a-z0-9])" W[j] (length(W[j]) <= 4 ? "(s|es|ed|d|ing|y|ies)?" : "[a-z]?[a-z]?[a-z]?[a-z]?") "([^a-z0-9]|$)")) {
+              M[i, t] = 1; DF[t]++; if (low ~ ("(^|[^a-z0-9])" W[j] "(s|es|ed|d|ing|y|ies)?([^a-z0-9]|$)")) X[i, t] = 1; break } } }
         nl = 0; for (t = 1; t <= nt; t++) if (length(T[t]) >= 3) nl++   # two-letter words only find #tags: they must not raise the bar
+        avgl = 0; for (i = 1; i <= n; i++) avgl += length(U[i]); avgl = (n ? avgl / n : 1); if (avgl < 1) avgl = 1
         need = (nl >= 2) ? 2 : 1
         for (i = 1; i <= n; i++) {
           s = 0; c = 0; tag = 0; low = tolower(U[i])
           for (t = 1; t <= nt; t++) if ((i, t) in M) { s += log(1 + n / DF[t]); c++; if (index(low, "#" T[t]) || index(low, "/" T[t])) { s += 1; tag = 1 } }
           # accept: enough distinct terms, or a tag hit, or one specific term (≥5 chars, rare in memory)
-          rare = 0; for (t = 1; t <= nt; t++) if ((i, t) in M && length(T[t]) >= 5 && DF[t] <= 2) rare = 1
+          rare = 0; for (t = 1; t <= nt; t++) if ((i, t) in X && length(T[t]) >= 5 && DF[t] <= 2) rare = 1   # the word itself: "product" is not "production"
+          # the share of the prompt weight a line covers: below PM_RECALL_MIN it is a chance overlap, not an answer
+          tw = 0; for (t = 1; t <= nt; t++) if (length(T[t]) >= 3) tw += log(1 + n / (DF[t] > 0 ? DF[t] : 1))
+          if (tw > 0 && !tag && s / tw < minc) s = 0
+          # lines that cover more of the prompt rank higher; a long line matches words by chance, so it counts a little less
+          if (s > 0) s = s * (0.5 + c / (nl > 0 ? nl : 1)) / (0.75 + 0.25 * length(U[i]) / avgl)
           if (P[i]) { if (c >= need) S[i] = s / 2 }   # prose needs real overlap and counts half
           else if (c >= need || (c >= 1 && (tag || rare))) S[i] = s
         }
         for (r = 1; r <= k; r++) {
           best = 0; bi = 0
-          for (i in S) if (S[i] > best && !(P[i] && prose >= 1)) { best = S[i]; bi = i }   # at most one prose paragraph
+          for (i in S) if (S[i] > best && !(P[i] && prose >= 2)) { best = S[i]; bi = i }   # at most two prose paragraphs (topic pages hold answers too)
           if (!bi) break
           if (P[bi]) prose++
           f = F[bi]; if (index(f, root) == 1) f = substr(f, length(root) + 1)

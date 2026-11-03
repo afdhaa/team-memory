@@ -1,0 +1,53 @@
+project	query	file	needle	kind
+ky	getting TypeError: The network connection was lost on our embedded webview and ky never retries it, just one attempt	gotchas.md	is thrown as a plain `TypeError`	bug
+ky	npx tsc --project tsconfig.test.json on a fresh clone -> Cannot find module 'ky' in every test-d file	gotchas.md	until `distribution/` is built	bug
+ky	my beforeError logger never fires when I throw new Error('give up') inside beforeRetry, why??	gotchas.md	skips the `beforeError` hooks	bug
+ky	upload endpoint answers 413 Payload Too Large without any Retry-After header and ky gives up immediately instead of backing off	topics/retries.md	Otherwise `413` is not retried	bug
+ky	in the error path of Ky.ts I log this.request.url for the failed call, is that actually the request that went out?	gotchas.md	`this.request` is an unsent clone	review
+ky	thinking of making the default retry wait longer, what is the backoff schedule right now before I change it?	topics/retries.md	300 ms, then 600 ms	review
+ky	I'm adding a new public error class, is dropping it in source/errors/ enough or does it need wiring somewhere else?	topics/codebase.md	error or type is exported here	review
+ky	ratelimit header precedence	topics/retries.md	only without it does Ky read	terse
+ky	code bugs get retried?	decisions.md	is thrown at once instead of retried	terse
+ky	timeouts retried by default	topics/retries.md	`TimeoutError` is retried when	terse
+ky	gimana cara ganti timeout cuma buat percobaan berikutnya dari dalam hook beforeRetry?	topics/retries.md	return `{options}` to change	indonesian
+ky	kalau koneksi putus pas lagi baca body pakai .json(), ky bakal ngulang request-nya ga?	topics/retries.md	while `.json()`, `.text()`	indonesian
+ky	aku set totalTimeout 300ms, servernya kasih Retry-After 10, kok langsung TimeoutError dan cuma 1 request ya	topics/retries.md	not shorter than the remaining budget	indonesian
+ky	mau paksa retry buat request POST dari afterResponse hook, bisa nggak sih?	topics/retries.md	so it also retries `post` and `patch`	indonesian
+ky	throwHttpErrors aku set false, terus dapet 500 kok ga di-retry sama sekali	topics/retries.md	No retry happens when the response	indonesian
+ky	test-nya pakai server lokal ya? helper buat bikin server test ada di mana	topics/codebase.md	`createHttpTestServer()`	indonesian
+ky	wher does ky merge instnace defaults w/ per-call opts	topics/codebase.md	deep-merged by `validateAndMerge()`	typo
+ky	ky.stop from a dupliacte copy of ky not recognisd, is it instanceof based??	topics/codebase.md	carry a brand, not only a class	typo
+ky	We have a beforeRequest hook that serves cached responses for a few endpoints. Sometimes the cached entry is stale and carries a 502. I expected ky to fall through to the network and retry like any other failure, but it throws right away. Is a response that a hook hands back ever retried?	topics/retries.md	or `beforeRetry` hook is used as-is	long
+ky	I'm writing an afterResponse hook for our auth refresh flow. On a 401 that can't be refreshed it should stop further attempts for that one call only, without touching the instance config. Can a hook change how many retries are allowed, and does it take effect mid-request?	topics/retries.md	a hook can change it by setting	long
+ky	does ky let me pass a node http agent for keep-alive connections?	-	-	negative
+ky	array query params serialize as foo=1,2 instead of foo=1&foo=2, how do I change that	-	-	negative
+ky	ky di react native error AbortController is not defined, harus pakai polyfill apa?	-	-	negative
+ky	cara set credentials include default buat semua request biar cookie ikut kekirim	-	-	negative
+ky	Content-Type boundary goes missing when I send FormData together with custom headers	-	-	negative
+ky	bigint in json response	-	-	negative
+tokoku-api	owner says yesterday's payout was Rp 7.000 less than his QRIS sales, is settlement losing money?	gotchas.md	payout is short by the gateway fee	bug
+tokoku-api	vitest blowing up with relation stock_ledger does not exist right after I pulled main	gotchas.md	after pulling new migrations	bug
+tokoku-api	edited a job in src/jobs but the worker keeps running the old code even though npm run dev reloaded	gotchas.md	does not pick up code changes	bug
+tokoku-api	seeing the gateway hit our payment webhook two times for the same QRIS payment, will that double-mark the sale?	topics/payments.md	The webhook can arrive twice	bug
+tokoku-api	PR changes src/payments/settlement/settle-daily.ts to batch payouts per bank, ok to merge?	decisions.md	Freeze `src/payments/settlement/`	review
+tokoku-api	for supplier returns couldn't we just add PO lines with negative qty? way less code	decisions.md	are a separate table, not negative	review
+tokoku-api	can the tablet just mark the sale paid when it shows the success screen? saves a round trip to the server	topics/payments.md	paid from the tablet's own report	review
+tokoku-api	who counts as active member	topics/glossary.md	**Member aktif**	terse
+tokoku-api	undo bad deploy	procedures/release.md	roll both services back	terse
+tokoku-api	gateway amount strings	topics/payments.md	`Money.fromGateway()`	terse
+tokoku-api	jam berapa sih job settlement jalan? kenapa nggak tengah malam aja	decisions.md	runs at 02:00 WIB	indonesian
+tokoku-api	kenapa stok baru dicek pas transaksi disimpan, bukan waktu barang di-scan?	decisions.md	Stock is checked when the sale is saved	indonesian
+tokoku-api	lagi testing worker di staging, gimana biar notif WA nggak kekirim ke toko beneran	gotchas.md	`NOTIFY_DRY_RUN=1` setting	indonesian
+tokoku-api	toko mau retur barang ke supplier buat faktur 2 bulan lalu, sistem bolehin nggak?	gotchas.md	refused after 30 days	indonesian
+tokoku-api	PO di sini maksudnya pre-order dari customer kan?	topics/glossary.md	not a pre-order from a customer	indonesian
+tokoku-api	release notes ditulis pake bahasa apa, terus buat siapa?	procedures/release.md	in Indonesian, for shop owners	indonesian
+tokoku-api	how do i knw the deploy actualy worked, is there a healthchek?	procedures/release.md	`GET /health` shows the new version	typo
+tokoku-api	bg jobs - why bullmq n not a seperate queue svc?	decisions.md	BullMQ on the existing Redis	typo
+tokoku-api	We're building a small dashboard for shop owners. They asked to see the status of their money from card sales there too. Before I start I want to get the terms right: what exactly does settlement mean in this codebase, and how many days until the money reaches the shop?	topics/glossary.md	H+1 working day	long
+tokoku-api	Today's release has two migrations that alter the orders table. I've shipped releases before but never one with migrations, and CI on main is already green. What should I look at against the production database before I bump the version?	procedures/release.md	`npx prisma migrate status`	long
+tokoku-api	gimana cara nambah metode bayar e-wallet kayak OVO atau GoPay?	-	-	negative
+tokoku-api	berapa lama sesi login di tablet sebelum expired?	-	-	negative
+tokoku-api	PPN 11% dihitung di harga barang atau baru di struk?	-	-	negative
+tokoku-api	where is the rate limit configured for the public API	-	-	negative
+tokoku-api	how do I seed my local db with a few sample shops and products	-	-	negative
+tokoku-api	receipt printer bluetooth	-	-	negative

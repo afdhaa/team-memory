@@ -382,6 +382,51 @@ check "lint: an entry that states its exception (\"only for\") is not a contradi
 o="$(cd "$CT" && bash "$SRC/scripts/mem.sh" review)"
 check "review: a topic page written from the code is listed as a whole page" 'printf "%s" "$o" | grep -q "topics/pool.md:3" && printf "%s" "$o" | grep -q "the whole page — Source:"' "$o"
 
+if [ -f "$SRC/action/pr-comment.sh" ]; then   # the GitHub Action lives in the repository, not in the npm package
+echo "• GitHub Action: pull request comment"
+PRR="$TMP/prrepo"; mkdir -p "$PRR/src/pay" "$PRR/src/stock" && ( cd "$PRR" && git init -q -b main && git config user.email t@t && git config user.name t &&
+  echo a > src/pay/calc.ts && echo b > src/stock/adjust.ts && echo c > src/other.ts && bash "$SRC/scripts/mem.sh" scan >/dev/null 2>&1 &&
+  printf '%s\n' '- 2026-09-30 · Freeze src/pay/ until the audit ends. #hold @src/pay/ (user)' \
+    '- 2026-06-01 · Reports run nightly, because the DB is quiet then. #reports (agent, unconfirmed)' >> .memory/decisions.md &&
+  printf '%s\n' '1. **[2026-09-12] Payouts are short by the gateway fee** @src/pay/calc.ts (user, seen: 4)' '   Do instead: compare with the fee line first.' >> .memory/gotchas.md &&
+  printf '%s\n' '- Stock changes go through `src/stock/adjust.ts`. @src/stock/ (user, 2026-07-15)' > .memory/r.tmp &&
+  awk '/^## Rules/ { print; while ((getline l < ".memory/r.tmp") > 0) print l; next } { print }' .memory/index.md > .memory/i.tmp && mv .memory/i.tmp .memory/index.md && rm .memory/r.tmp &&
+  git add -A && git commit -qm base && git checkout -qb pr && echo x >> src/pay/calc.ts && git mv src/stock/adjust.ts src/stock/adjust-stock.ts &&
+  printf '%s\n' '- 2026-11-02 · Use npm for the tooling. #tooling (agent, unconfirmed)' '- 2026-11-02 · Use pnpm for installs. #tooling (user)' >> .memory/decisions.md && git add -A && git commit -qm pr )
+o="$(cd "$PRR" && GITHUB_REPOSITORY=o/r bash "$SRC/action/pr-comment.sh" --base main)"
+check "action: frozen area, notes with Do instead, entries the PR adds, linked to the line" 'printf "%s" "$o" | grep -q "Frozen areas touched" && printf "%s" "$o" | grep -q "Freeze src/pay/ until the audit ends" && printf "%s" "$o" | grep -q "Do instead: compare with the fee line first." && printf "%s" "$o" | grep -q "Added to memory in this PR\*\* (2)" && printf "%s" "$o" | grep -qE "\[decisions.md:[0-9]+\]\(https://github.com/o/r/blob/[0-9a-f]+/.memory/decisions.md#L[0-9]+\)"' "$o"
+check "action: lint problems of this PR only (its contradiction, its rename), not old ones elsewhere" 'printf "%s" "$o" | grep -q "possible contradiction" && printf "%s" "$o" | grep -q "renamed to \`src/stock/adjust-stock.ts\`" && ! printf "%s" "$o" | grep -q "unconfirmed for"' "$o"
+for i in $(seq 1 320); do echo "$i" > "$PRR/src/f$i.ts"; done; mkdir -p "$PRR/src/pay/deep" && echo z > "$PRR/src/pay/deep/zz.ts"
+( cd "$PRR" && git add -A && git commit -qm big )
+o="$(cd "$PRR" && bash "$SRC/action/pr-comment.sh" --base main)"
+check "action: a #hold is found in a pull request of 300+ files" 'printf "%s" "$o" | grep -q "Frozen areas touched" && printf "%s" "$o" | grep -q "src/pay/deep/zz.ts\|+[0-9]* more"' "$o"
+o="$(cd "$PRR" && bash "$SRC/scripts/mem.sh" path --tsv src/pay/calc.ts src/other.ts src/pay/deep/zz.ts)"
+check "mem.sh path --tsv: many paths in one pass, one line per entry and path" '[ "$(printf "%s\n" "$o" | grep -c "	src/pay/")" -ge 3 ] && ! printf "%s" "$o" | grep -q "src/other.ts"' "$o"
+mkdir -p "$TMP/stub" && printf '%s\n' '#!/usr/bin/env bash' 'echo "curl $*" >> "$STUB_LOG"' 'case "$*" in *"comments?per_page"*) cat "$STUB_LIST" ;; *) echo "{}" ;; esac' > "$TMP/stub/curl" && chmod +x "$TMP/stub/curl"
+printf '[{"id":42,"body":"<!-- team-memory:pr -->old"}]' > "$TMP/stub/has.json"; : > "$TMP/stub/log"
+if command -v jq >/dev/null 2>&1; then
+  o="$(cd "$PRR" && PATH="$TMP/stub:$PATH" STUB_LOG="$TMP/stub/log" STUB_LIST="$TMP/stub/has.json" GITHUB_TOKEN=x PR_NUMBER=7 GITHUB_REPOSITORY=o/r bash "$SRC/action/pr-comment.sh" --base main --post)"
+  check "action: an earlier team-memory comment is updated, not duplicated" 'printf "%s" "$o" | grep -q "updated comment 42 on #7" && grep -q "PATCH https://api.github.com/repos/o/r/issues/comments/42" "$TMP/stub/log" && ! grep -q "POST" "$TMP/stub/log"' "$o"
+fi
+fi
+
+echo "• import of existing notes"
+IM="$TMP/import"; mkdir -p "$IM/docs/adr" "$IM/.cursor/rules" "$IM/memory-bank" && ( cd "$IM" && git init -q && bash "$SRC/scripts/mem.sh" scan >/dev/null 2>&1
+  printf '%s\n' '# 2. Use PostgreSQL' '' 'Date: 2024-03-01' '' '## Status' '' 'Accepted' '' '## Decision' 'We use PostgreSQL.' > docs/adr/0002-use-postgresql.md
+  printf '%s\n' '# 3. Use MongoDB' '' 'Status: Superseded by 0004' > docs/adr/0003-use-mongodb.md
+  printf '%s\n' '# Notes' '' '- Always run `make fmt` before committing, CI rejects unformatted code.' '- Careful: the staging database is shared with the QA team, never truncate it.' \
+    '- We chose Redis for sessions because the API runs on three nodes.' '- short' > CLAUDE.md
+  printf '%s\n' '---' 'description: style' 'globs: "*.ts"' '---' '- Prefer named exports over default exports in every module.' > .cursor/rules/style.mdc
+  printf '%s\n' '- Moved the billing cron to the worker so the API stays stateless.' > memory-bank/decisionLog.md )
+o="$(cd "$IM" && bash "$SRC/scripts/mem.sh" import)"
+check "import: a preview of ADRs and notes, nothing written yet" 'printf "%s" "$o" | grep -q "ADRs: 2 to add" && printf "%s" "$o" | grep -q "notes in: .cursor/rules/style.mdc CLAUDE.md memory-bank/decisionLog.md" && [ ! -f "$IM/.memory/inbox.md" ] && ! grep -q PostgreSQL "$IM/.memory/decisions.md"' "$o"
+o="$(cd "$IM" && bash "$SRC/scripts/mem.sh" import --write; cat .memory/decisions.md .memory/inbox.md)"
+check "import --write: ADRs as decisions (superseded struck out), notes in the inbox with kind and line" 'printf "%s" "$o" | grep -q "· Use PostgreSQL (ADR 0002, accepted, 2024-03-01); see \`docs/adr/0002-use-postgresql.md\`. #adr @docs/adr/0002-use-postgresql.md (user, from docs/adr/0002-use-postgresql.md)" && printf "%s" "$o" | grep -q "~~.*Use MongoDB.*~~ superseded" && printf "%s" "$o" | grep -q "imported · rule · \"Always run .make fmt. before committing, CI rejects unformatted code.\" — CLAUDE.md:3" && printf "%s" "$o" | grep -q "imported · gotcha · \"Careful: the staging database" && printf "%s" "$o" | grep -q "imported · decision · \"We chose Redis" && printf "%s" "$o" | grep -q "imported · rule · \"Prefer named exports.*style.mdc:5" && printf "%s" "$o" | grep -q "imported · decision · \"Moved the billing cron" && ! printf "%s" "$o" | grep -q "short\"\|description: style"' "$o"
+o="$(cd "$IM" && bash "$SRC/scripts/mem.sh" import)"
+check "import: a second run finds nothing new" 'printf "%s" "$o" | grep -q "Nothing to import"' "$o"
+o="$(printf '{"session_id":"%s-im","cwd":"%s","source":"startup"}' "$RUN" "$IM" | bash "$SRC/hooks/pm-hook.sh" session-start claude)"
+check "session start: imported lines get their own triage note" 'printf "%s" "$o" | grep -q "line(s) imported from the project" && ! printf "%s" "$o" | grep -q "captured user remark"' "$o"
+
 echo "• stale mentions"
 SM="$TMP/stale"; mkdir -p "$SM" && ( cd "$SM" && git init -q && git config user.email t@t && git config user.name t && mkdir -p src lib pkg/ui/src &&
   echo a > src/jwt.ts && echo b > lib/old.py && echo c > pkg/ui/src/Button.tsx && git add -A && git commit -qm i &&
@@ -755,7 +800,7 @@ The payments module wraps the gateway client and the checkout code calls it once
 Payments retries are logged by the gateway module; payments tests patch the clock for the gateway.
 TXT
 o="$(printf '{"session_id":"%s-pr","cwd":"%s","prompt":"payments gateway calls fail with 429"}' "$RUN" "$LR" | bash "$SRC/hooks/pm-hook.sh" prompt claude)"
-check "recall: a gotcha ranks above overview prose, and at most one prose line" 'printf "%s" "$o" | grep -q "gotchas.md.*five calls" && [ "$(printf "%s" "$o" | grep -o "codebase.md:[0-9]*" | wc -l | tr -d " ")" -le 1 ]' "$o"
+check "recall: a gotcha ranks above overview prose, and at most two prose lines" 'printf "%s" "$o" | grep -q "gotchas.md.*five calls" && [ "$(printf "%s" "$o" | grep -oE "[a-z]+\.md:[0-9]+" | head -n1 | grep -c gotchas)" = 1 ] && [ "$(printf "%s" "$o" | grep -o "codebase.md:[0-9]*" | wc -l | tr -d " ")" -le 2 ]' "$o"
 echo x > src/pay/old.py && git add -A && git commit -qm f && rm src/pay/old.py
 o="$(bash "$SRC/scripts/mem.sh" scan --print 2>&1)"; check "scan leaves out files deleted but not yet staged" '! printf "%s" "$o" | grep -q "^- .src/. "' "$(printf "%s" "$o" | grep -n "src" | head -3)"
 cd "$S"

@@ -3,6 +3,51 @@
 All notable changes. Versions follow [semver](https://semver.org): minor for new features,
 patch for fixes and reorganisation.
 
+## 4.3.5
+- New: a GitHub Action, `uses: afdhaa/team-memory@v4.3.5`. On every pull request it posts one comment
+  (updated on each push, never duplicated) with the frozen `#hold` areas the pull request touches, the
+  memory entries for the files it changes (rules, decisions, gotchas with their "Do instead", glossary
+  terms), each linked to its line, the entries it adds to `.memory/`, and the memory problems it
+  causes: a contradiction with an existing entry, a renamed or deleted file memory still names, a
+  secret. Older problems elsewhere stay out of the comment. Works with `.memory/` in one package of a
+  monorepo (`path:`), can fail the check on lint problems (`fail-on-lint: true`), and writes the job
+  summary when a fork's read-only token cannot comment. The action lives in the repository
+  (`action.yml`, `action/`), not in the npm package.
+  Entries that name a changed file or its folder in backticks without an `@path` are listed apart,
+  with a hint to tag them. Tested by replaying real vite pull requests: 0.4–1.2 s each, and 0.5 s for
+  300 commits (600 files) in one pull request.
+- New: `mem.sh import` brings in the notes a project already has. ADRs (`docs/adr/`, `docs/decisions/`,
+  `adr/` …) become one decision each, pointing to the ADR, with its status and date (superseded ones
+  struck out). Bullets from CLAUDE.md, AGENTS.md (outside the team-memory block), GEMINI.md,
+  `.cursor/rules`, `.cursorrules`, `.clinerules`, `.windsurfrules`, `.github/copilot-instructions.md`,
+  Cline's `memory-bank/`, Serena's `.serena/memories/`, `.agent-memory/`, `.context/memory/` and old
+  `decisions.md` files go to the inbox as candidates marked rule, decision, gotcha or fact, with their
+  file and line; the agent rewrites them as entries ("triage the imported notes") and asks before
+  moving anything out of files agents still read. A preview first; `--write` changes only `.memory/`;
+  a second run skips what is already in memory or the inbox.
+- Prompt recall, tuned against a new benchmark (`bench/recall/`): 60 questions written by someone who
+  did not read the search code, against the ky and tokoku-api examples, plus 16 that memory cannot
+  answer; half used for tuning, half kept for checking. Changes: word forms match ("retries" finds
+  "retry"), a short list of developer synonyms in English and Indonesian ("tunggu" finds "wait",
+  "setoran" finds "payout"), a short word no longer matches the start of a longer one ("set" is not
+  "settlement"), lines covering more of the prompt rank higher, and two topic paragraphs may come up
+  instead of one. Results on all 76: hit@1 41.7% → 56.7%, recall@5 61.7% → 83.3%, MRR 0.50 → 0.66,
+  and questions with no answer that recall nothing 56% → 81%. A second set of 52 questions, written
+  later in other styles (bug reports, terse, typos) and never used for tuning, keeps everyone honest:
+  recall@5 90.0% → 92.5% and the same 42% quiet there, so most of the gain was on the kinds of
+  question the first set holds. Two further ideas (page titles as context, keeping only the rarest
+  words of a long prompt) did not help on the second set and were left out. The benchmark also shows
+  the cost: about 4 lines, ~310 tokens per prompt. CI runs both sets and fails when recall drops.
+- `PM_RECALL_MIN` (default off): a stricter prompt recall that drops lines covering little of the
+  prompt. Fewer lines for unrelated questions, at a clear cost in recall (0.2: quiet 42% → 58%,
+  recall@5 92.5% → 77.5% on the second set).
+- Faster hooks: recording what was shown now takes one `cksum` for all lines instead of several
+  processes per line, and the planted-instruction check at session start one `grep` for all files.
+  On the tokoku-api example: prompt 122 → 85 ms, before an edit 107 → 88 ms, after an edit 93 → 73 ms,
+  session start 114 → 66 ms. The hook statistics keep the same format.
+- SKILL.md: the helper list names the everyday commands and points to `mem.sh help` for the rest.
+- `mem.sh path` takes many paths in one pass (`--tsv` prints one line per entry and path).
+
 ## 4.3.4
 - `mem.sh lint` suggests missing `@path` tags: an entry that names `source/core/Ky.ts` without an
   `@path` covering it never comes up when that file is edited. Ignored paths (build output) are left
