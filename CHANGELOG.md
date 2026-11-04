@@ -3,6 +3,12 @@
 All notable changes. Versions follow [semver](https://semver.org): minor for new features,
 patch for fixes and reorganisation.
 
+## 4.3.6
+- Fix: the GitHub Action did not load (`action.yml` was not valid YAML: an unquoted
+  `pull-requests: write` in a description). Found on the first real pull request. CI now runs the
+  action itself (`uses: ./`) on the example memory, so a broken `action.yml` fails before a release.
+  Use `afdhaa/team-memory@v4.3.6`.
+
 ## 4.3.5
 - New: a GitHub Action, `uses: afdhaa/team-memory@v4.3.5`. On every pull request it posts one comment
   (updated on each push, never duplicated) with the frozen `#hold` areas the pull request touches, the

@@ -2,7 +2,7 @@
 name: team-memory
 description: Long-term project memory for coding agents, kept as plain Markdown in the repo (`.memory/`) and shared by the team and every agent, plus personal preferences in `~/.agents/memory/user.md`. Use at the START of every task (recall rules, decisions, gotchas, progress; triage `.memory/inbox.md`), on each NEW REQUEST (search related memory), BEFORE EDITING an area (check entries tagged for its path) and BEFORE FINISHING (record decisions, user corrections, gotchas, procedures, progress). In a new project without `.memory/`, run `mem.sh scan` first. Also use when the user says "remember this", "ingat ini", "catat", "jangan lupa", "untuk semua project", "forget that", "lupakan", "what do you know about X", "update memory", "review memory", "cek memori", "rapikan memori", "scan ulang", "quiz me", "kuis saya", "import our notes", "freeze this area", corrects how you did something, or a message starts with "[team-memory]". Trigger whenever the repo has a `.memory/` folder.
 metadata:
-  version: 4.3.5
+  version: 4.3.6
 ---
 
 # Team Memory
