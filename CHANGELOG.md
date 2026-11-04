@@ -7,6 +7,8 @@ patch for fixes and reorganisation.
 - Fix: the GitHub Action did not load (`action.yml` was not valid YAML: an unquoted
   `pull-requests: write` in a description). Found on the first real pull request. CI now runs the
   action itself (`uses: ./`) on the example memory, so a broken `action.yml` fails before a release.
+- Fix: the action could not find a base branch whose name has a slash (`release/1.x`): it took the
+  name for `origin/<branch>`. It now tries `origin/<name>`, then the name, then fetches it.
   Use `afdhaa/team-memory@v4.3.6`.
 
 ## 4.3.5

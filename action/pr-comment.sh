@@ -26,8 +26,11 @@ link() { # link <.memory/file:line> → markdown link to that line at the PR's h
 
 # the base to compare with: the PR's base branch, fetched when the checkout is shallow
 [ -n "$BASE" ] || BASE="$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || echo origin/main)"
-case "$BASE" in origin/*|*/*) ;; *) git rev-parse -q --verify "origin/$BASE" >/dev/null 2>&1 && BASE="origin/$BASE" ;; esac
-git rev-parse -q --verify "$BASE" >/dev/null 2>&1 || git fetch -q --no-tags origin "${BASE#origin/}:refs/remotes/origin/${BASE#origin/}" 2>/dev/null
+# a branch name may hold slashes (release/1.x): try origin/<name> first, then the name as given, then fetch it
+if git rev-parse -q --verify "origin/$BASE" >/dev/null 2>&1; then BASE="origin/$BASE"
+elif ! git rev-parse -q --verify "$BASE" >/dev/null 2>&1; then
+  b="${BASE#origin/}"; git fetch -q --no-tags origin "+refs/heads/$b:refs/remotes/origin/$b" 2>/dev/null && BASE="origin/$b"
+fi
 git rev-parse -q --verify "$BASE" >/dev/null 2>&1 || { echo "::error::team-memory: cannot find the base branch $BASE (use actions/checkout with fetch-depth: 0)"; exit 1; }
 MB="$(git merge-base "$BASE" HEAD 2>/dev/null || echo "$BASE")"
 

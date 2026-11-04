@@ -402,6 +402,11 @@ o="$(cd "$PRR" && bash "$SRC/action/pr-comment.sh" --base main)"
 check "action: a #hold is found in a pull request of 300+ files" 'printf "%s" "$o" | grep -q "Frozen areas touched" && printf "%s" "$o" | grep -q "src/pay/deep/zz.ts\|+[0-9]* more"' "$o"
 o="$(cd "$PRR" && bash "$SRC/scripts/mem.sh" path --tsv src/pay/calc.ts src/other.ts src/pay/deep/zz.ts)"
 check "mem.sh path --tsv: many paths in one pass, one line per entry and path" '[ "$(printf "%s\n" "$o" | grep -c "	src/pay/")" -ge 3 ] && ! printf "%s" "$o" | grep -q "src/other.ts"' "$o"
+# a base branch with a slash (release/1.x), present or not yet fetched, as on GitHub
+git init -q --bare "$TMP/prorigin.git" && ( cd "$PRR" && git remote add origin "$TMP/prorigin.git" && git push -q origin main:release/1.x 2>/dev/null &&
+  git update-ref -d refs/remotes/origin/release/1.x 2>/dev/null )
+o="$(cd "$PRR" && BASE_REF=release/1.x bash "$SRC/action/pr-comment.sh")"
+check "action: a base branch with a slash is found (fetched when missing)" 'printf "%s" "$o" | grep -q "Frozen areas touched"' "$o"
 mkdir -p "$TMP/stub" && printf '%s\n' '#!/usr/bin/env bash' 'echo "curl $*" >> "$STUB_LOG"' 'case "$*" in *"comments?per_page"*) cat "$STUB_LIST" ;; *) echo "{}" ;; esac' > "$TMP/stub/curl" && chmod +x "$TMP/stub/curl"
 printf '[{"id":42,"body":"<!-- team-memory:pr -->old"}]' > "$TMP/stub/has.json"; : > "$TMP/stub/log"
 if command -v jq >/dev/null 2>&1; then
