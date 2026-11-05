@@ -9,6 +9,8 @@ patch for fixes and reorganisation.
   action itself (`uses: ./`) on the example memory, so a broken `action.yml` fails before a release.
 - Fix: the action could not find a base branch whose name has a slash (`release/1.x`): it took the
   name for `origin/<branch>`. It now tries `origin/<name>`, then the name, then fetches it.
+- The pull request comment shows an entry's title when its `Why:` or `Do instead:` line is what names
+  the changed file, and cuts long text at a space (it could break a character such as `›`).
   Use `afdhaa/team-memory@v4.3.6`.
 
 ## 4.3.5

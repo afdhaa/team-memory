@@ -49,7 +49,8 @@ MENTIONS="$(awk '
   /^<!-- scan:start/ { gen = 1; next } gen { if (/^<!-- scan:end/) gen = 0; next }
   /^[ \t]*<!--/ { inc = !/-->/; next } inc { if (/-->/) inc = 0; next }
   /^#|^>/ { next }
-  { x = $0; while (match(x, /`[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)+\/?`/)) { w = substr(x, RSTART + 1, RLENGTH - 2); x = substr(x, RSTART + RLENGTH); print FILENAME ":" FNR "\t" w } }' \
+  /^([-*] |[0-9]+\. |### )/ || /^[^ \t]/ { start = FNR }   # a Why:/Do instead: line belongs to the entry above it
+  { x = $0; while (match(x, /`[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)+\/?`/)) { w = substr(x, RSTART + 1, RLENGTH - 2); x = substr(x, RSTART + RLENGTH); print FILENAME ":" (start ? start : FNR) "\t" w } }' \
   $(find -H .memory -type f -name '*.md' ! -name README.md ! -name progress.md ! -name inbox.md ! -name local.md 2>/dev/null | sort) /dev/null 2>/dev/null)"
 MHITS="$(printf '%s\n' "$CHANGED" | MENTIONS="$MENTIONS" HITS="$HITS" awk '
   BEGIN { n = split(ENVIRON["MENTIONS"], M, "\n"); h = split(ENVIRON["HITS"], H, "\n"); for (i = 1; i <= h; i++) { split(H[i], a, "\t"); done[a[1]] = 1 } }
@@ -58,7 +59,8 @@ MHITS="$(printf '%s\n' "$CHANGED" | MENTIONS="$MENTIONS" HITS="$HITS" awk '
   END { for (i = 1; i <= k && i <= 8; i++) print o[i] "\t" w[o[i]] (c[o[i]] > 2 ? " +" c[o[i]] - 2 " more" : "") }')"
 
 entry() { # the entry text at .memory/file:line, without tags, dates and source
-  sed -n "${1#*:}p" "${1%%:*}" | sed -E 's/^([0-9]+\. |- |### )//; s/\*\*//g; s/^\[[0-9-]+\] //; s/^[0-9]{4}-[0-9]{2}-[0-9]{2} · //; s/[[:space:]]+[#@][^[:space:]]+//g; s/[[:space:]]*\((user|agent)[^()]*\)[[:space:]]*$//' | cut -c1-220
+  sed -n "${1#*:}p" "${1%%:*}" | sed -E 's/^([0-9]+\. |- |### )//; s/\*\*//g; s/^\[[0-9-]+\] //; s/^[0-9]{4}-[0-9]{2}-[0-9]{2} · //; s/[[:space:]]+[#@][^[:space:]]+//g; s/[[:space:]]*\((user|agent)[^()]*\)[[:space:]]*$//' |
+    awk '{ if (length($0) > 220) { s = substr($0, 1, 220); sub(/[ \t][^ \t]*$/, "", s); print s "…" } else print }'   # cut at a space: never inside a UTF-8 character
 }
 src() { sed -n "${1#*:}p" "${1%%:*}" | sed -nE 's/.*\(((user|agent)[^()]*)\)[[:space:]]*$/\1/p'; }
 fix() { # a gotcha's "Do instead:" line, when the entry has one
