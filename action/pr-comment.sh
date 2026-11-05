@@ -71,7 +71,9 @@ while IFS=$'\t' read -r loc files; do
   [ -n "$loc" ] || continue
   s="$(src "$loc")"; d="$(fix "$loc")"
   line="- $(entry "$loc") — $(link "$loc")${s:+ ($s)}"$'\n'"  <sub>for $files</sub>"${d:+$'\n'"  Do instead: $d"}
-  if sed -n "${loc#*:}p" "${loc%%:*}" | grep -q '#hold'; then HOLD="$HOLD$line"$'\n'; nh=$((nh + 1)); else NOTE="$NOTE$line"$'\n'; nn=$((nn + 1)); fi
+  # at most 30 of each in the comment (GitHub refuses a comment over 65,536 characters); the counts stay whole
+  if sed -n "${loc#*:}p" "${loc%%:*}" | grep -q '#hold'; then nh=$((nh + 1)); [ "$nh" -le 30 ] && HOLD="$HOLD$line"$'\n'
+  else nn=$((nn + 1)); [ "$nn" -le 30 ] && NOTE="$NOTE$line"$'\n'; fi
 done <<HITS_EOF
 $HITS
 HITS_EOF
@@ -98,6 +100,8 @@ $(git diff -U0 "$MB" HEAD -- "$f" | awk '/^@@/ { split($3, a, ","); s = substr(a
 NEW_EOF
 done
 [ "$nw" -gt 10 ] && NEW="$NEW- … and $((nw - 10)) more"$'\n'
+[ "$nh" -gt 30 ] && HOLD="$HOLD- … and $((nh - 30)) more frozen area(s): run \`mem.sh path <file>\` for the rest"$'\n'
+[ "$nn" -gt 30 ] && NOTE="$NOTE- … and $((nn - 30)) more: run \`mem.sh path <file>\` on the files you change"$'\n'
 
 # 3) memory lint problems (⚠) that concern this PR: a memory line it adds or changes, a file it changes,
 #    renames or deletes, or a secret anywhere. Older problems elsewhere are left to the team's own lint run.
@@ -112,7 +116,8 @@ LINT="$(bash "$MEMSH" lint 2>/dev/null | grep '^⚠' | ADDED_AT="$ADDED_AT" TOUC
     if (keep && k++ < 10) { sub(/^⚠ /, "- "); print } }')"
 nl="$(printf '%s' "$LINT" | grep -c .)"
 
-# the comment
+# the comment (its own temp file: two runs on one machine must not mix their text)
+BODY="$(mktemp "${TMPDIR:-/tmp}/team-memory-comment.XXXXXX")"; trap 'rm -f "$BODY" "$BODY.full"' EXIT
 {
   echo "$MARK"
   echo "### 📝 team-memory"
@@ -126,15 +131,21 @@ nl="$(printf '%s' "$LINT" | grep -c .)"
   [ "$nl" -gt 0 ] && { echo; echo "**Memory checks** (\`mem.sh lint\`):"; printf '%s\n' "$LINT"; }
   echo
   echo "<sub>From \`.memory/\` in this repository · [team-memory](https://github.com/afdhaa/team-memory)</sub>"
-} > "${TMPDIR:-/tmp}/team-memory-comment.md"
-BODY="${TMPDIR:-/tmp}/team-memory-comment.md"
-[ -n "${GITHUB_STEP_SUMMARY:-}" ] && cat "$BODY" >> "$GITHUB_STEP_SUMMARY"
+} > "$BODY"
+# a last guard on GitHub's comment limit (characters; counted here in bytes, which is stricter)
+if [ "$(wc -c < "$BODY")" -gt 60000 ]; then
+  { head -c 59000 "$BODY" | awk 'NR > 1 { print prev } { prev = $0 }'; echo; echo "… (cut to fit GitHub's comment limit; the job summary has the whole text)"; } > "$BODY.cut"
+  cp "$BODY" "$BODY.full"; mv "$BODY.cut" "$BODY"
+fi
+SUM="$BODY"; [ -f "$BODY.full" ] && SUM="$BODY.full"   # the job summary keeps the whole text
+[ -n "${GITHUB_STEP_SUMMARY:-}" ] && cat "$SUM" >> "$GITHUB_STEP_SUMMARY"
 [ -n "${GITHUB_OUTPUT:-}" ] && printf 'entries=%s\nholds=%s\nadded=%s\nlint=%s\n' "$((nn + nm))" "$nh" "$nw" "$nl" >> "$GITHUB_OUTPUT"
 
 # post or update the one comment (found by its marker)
 PR="${PR_NUMBER:-}"
 if [ -z "$POST" ] || [ -z "${GITHUB_TOKEN:-}" ] || [ -z "$PR" ] || [ -z "$REPO" ]; then cat "$BODY"
 else
+  command -v jq >/dev/null 2>&1 || { echo "::warning::team-memory: jq is not installed on this runner, so the comment cannot be posted; see the job summary"; exit 0; }
   API="${GITHUB_API_URL:-https://api.github.com}/repos/$REPO"
   gh_api() { curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "$@"; }
   quiet=""; [ "$nh$nn$nm$nw$nl" = "00000" ] && [ "${COMMENT_WHEN_EMPTY:-false}" != true ] && quiet=1

@@ -11,6 +11,11 @@ patch for fixes and reorganisation.
   name for `origin/<branch>`. It now tries `origin/<name>`, then the name, then fetches it.
 - The pull request comment shows an entry's title when its `Why:` or `Do instead:` line is what names
   the changed file, and cuts long text at a space (it could break a character such as `›`).
+- The pull request comment lists at most 30 notes and 30 frozen areas and counts the rest: a pull
+  request touching hundreds of areas made a comment over GitHub's 65,536-character limit, which GitHub
+  refuses. A final guard cuts the comment if it is still too long; the job summary keeps the whole
+  text. Without `jq` on a self-hosted runner, a clear warning instead of a failed post; each run uses
+  its own temporary file.
   Use `afdhaa/team-memory@v4.3.6`.
 
 ## 4.3.5

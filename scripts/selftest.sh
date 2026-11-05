@@ -408,6 +408,11 @@ check "mem.sh path --tsv: many paths in one pass, one line per entry and path" '
 o="$(cd "$PRR" && bash "$SRC/action/pr-comment.sh" --base pr2)"
 check "action: a path named in a Do instead: line shows its entry title; long text is cut at a space" 'printf "%s" "$o" | grep -q "^- Stock counts drift when a sale is retried" && ! printf "%s" "$o" | LC_ALL=C grep -q "› …\|›…"' "$o"
 ( cd "$PRR" && git checkout -q pr )
+BIG="$TMP/bigpr"; mkdir -p "$BIG" && ( cd "$BIG" && git init -q -b main && git config user.email t@t && git config user.name t && bash "$SRC/scripts/mem.sh" scan >/dev/null 2>&1 &&
+  for i in $(seq 1 60); do mkdir -p "src/m$i"; echo x > "src/m$i/f.ts"; echo "- 2026-11-01 · Module $i keeps its cache warm, because cold starts are slow. @src/m$i/ (user)" >> .memory/decisions.md; done &&
+  git add -A && git commit -qm base && git checkout -qb pr && for i in $(seq 1 60); do echo y >> "src/m$i/f.ts"; done && git commit -qam pr )
+o="$(cd "$BIG" && bash "$SRC/action/pr-comment.sh" --base main)"
+check "action: a pull request touching many areas lists 30 entries and counts the rest" '[ "$(printf "%s\n" "$o" | grep -c "^- Module")" = 30 ] && printf "%s" "$o" | grep -q "… and 30 more" && printf "%s" "$o" | grep -q "Notes for the files in this PR\*\* (60)"' "$(printf "%s" "$o" | tail -n 3)"
 # a base branch with a slash (release/1.x), present or not yet fetched, as on GitHub
 git init -q --bare "$TMP/prorigin.git" && ( cd "$PRR" && git remote add origin "$TMP/prorigin.git" && git push -q origin main:release/1.x 2>/dev/null &&
   git update-ref -d refs/remotes/origin/release/1.x 2>/dev/null )
