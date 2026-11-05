@@ -271,7 +271,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: afdhaa/team-memory@v4.3.5
+      - uses: afdhaa/team-memory@v4.3.6
         # with:
         #   path: packages/api       # where .memory/ lives, for one package of a monorepo
         #   fail-on-lint: true       # fail the check on memory lint problems

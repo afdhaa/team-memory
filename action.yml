@@ -1,37 +1,37 @@
 name: team-memory PR check
-description: Comments on a pull request with the team's memory entries for the files it changes, the frozen areas it touches, and memory lint problems.
+description: 'Comments on a pull request with the team''s memory entries for the files it changes, the frozen areas it touches, and memory lint problems.'
 author: afdhaa
 branding:
   icon: book-open
   color: purple
 inputs:
   path:
-    description: Folder that holds .memory/ (for one package of a monorepo, e.g. packages/api).
+    description: 'Folder that holds .memory/ (for one package of a monorepo, e.g. packages/api).'
     default: "."
   github-token:
-    description: Token used to post the comment. The default token works when the workflow grants `pull-requests: write`.
+    description: 'Token used to post the comment. The default token works when the workflow grants `pull-requests: write`.'
     default: ${{ github.token }}
   comment:
-    description: Post the comment on the pull request ("false" writes only the job summary).
+    description: 'Post the comment on the pull request ("false" writes only the job summary).'
     default: "true"
   comment-when-empty:
-    description: Also comment when no entry applies and lint is clean.
+    description: 'Also comment when no entry applies and lint is clean.'
     default: "false"
   fail-on-lint:
-    description: Fail the check when memory lint reports a problem (secrets, contradictions, renamed files…).
+    description: 'Fail the check when memory lint reports a problem (secrets, contradictions, renamed files…).'
     default: "false"
 outputs:
   entries:
-    description: Number of memory entries for the changed files.
+    description: 'Number of memory entries for the changed files.'
     value: ${{ steps.check.outputs.entries }}
   holds:
-    description: Number of frozen (#hold) areas the pull request touches.
+    description: 'Number of frozen (#hold) areas the pull request touches.'
     value: ${{ steps.check.outputs.holds }}
   added:
-    description: Number of entries the pull request adds to memory.
+    description: 'Number of entries the pull request adds to memory.'
     value: ${{ steps.check.outputs.added }}
   lint:
-    description: Number of memory lint problems.
+    description: 'Number of memory lint problems.'
     value: ${{ steps.check.outputs.lint }}
 runs:
   using: composite

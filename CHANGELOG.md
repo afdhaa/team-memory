@@ -3,6 +3,21 @@
 All notable changes. Versions follow [semver](https://semver.org): minor for new features,
 patch for fixes and reorganisation.
 
+## 4.3.6
+- Fix: the GitHub Action did not load (`action.yml` was not valid YAML: an unquoted
+  `pull-requests: write` in a description). Found on the first real pull request. CI now runs the
+  action itself (`uses: ./`) on the example memory, so a broken `action.yml` fails before a release.
+- Fix: the action could not find a base branch whose name has a slash (`release/1.x`): it took the
+  name for `origin/<branch>`. It now tries `origin/<name>`, then the name, then fetches it.
+- The pull request comment shows an entry's title when its `Why:` or `Do instead:` line is what names
+  the changed file, and cuts long text at a space (it could break a character such as `›`).
+- The pull request comment lists at most 30 notes and 30 frozen areas and counts the rest: a pull
+  request touching hundreds of areas made a comment over GitHub's 65,536-character limit, which GitHub
+  refuses. A final guard cuts the comment if it is still too long; the job summary keeps the whole
+  text. Without `jq` on a self-hosted runner, a clear warning instead of a failed post; each run uses
+  its own temporary file.
+  Use `afdhaa/team-memory@v4.3.6`.
+
 ## 4.3.5
 - New: a GitHub Action, `uses: afdhaa/team-memory@v4.3.5`. On every pull request it posts one comment
   (updated on each push, never duplicated) with the frozen `#hold` areas the pull request touches, the

@@ -402,6 +402,22 @@ o="$(cd "$PRR" && bash "$SRC/action/pr-comment.sh" --base main)"
 check "action: a #hold is found in a pull request of 300+ files" 'printf "%s" "$o" | grep -q "Frozen areas touched" && printf "%s" "$o" | grep -q "src/pay/deep/zz.ts\|+[0-9]* more"' "$o"
 o="$(cd "$PRR" && bash "$SRC/scripts/mem.sh" path --tsv src/pay/calc.ts src/other.ts src/pay/deep/zz.ts)"
 check "mem.sh path --tsv: many paths in one pass, one line per entry and path" '[ "$(printf "%s\n" "$o" | grep -c "	src/pay/")" -ge 3 ] && ! printf "%s" "$o" | grep -q "src/other.ts"' "$o"
+( cd "$PRR" && git checkout -q -b pr2 && printf '%s\n' '' '2. **[2026-09-13] Stock counts drift when a sale is retried** #stock (user, seen: 2)' \
+    "   Do instead: keep the retry inside \`src/stock/\`, where the ledger row is written — $(printf 'long text › %.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)." >> .memory/gotchas.md &&
+  git add -A && git commit -qm g && git checkout -q -b pr3 && echo y >> src/stock/adjust-stock.ts && git add -A && git commit -qm s )
+o="$(cd "$PRR" && bash "$SRC/action/pr-comment.sh" --base pr2)"
+check "action: a path named in a Do instead: line shows its entry title; long text is cut at a space" 'printf "%s" "$o" | grep -q "^- Stock counts drift when a sale is retried" && ! printf "%s" "$o" | LC_ALL=C grep -q "› …\|›…"' "$o"
+( cd "$PRR" && git checkout -q pr )
+BIG="$TMP/bigpr"; mkdir -p "$BIG" && ( cd "$BIG" && git init -q -b main && git config user.email t@t && git config user.name t && bash "$SRC/scripts/mem.sh" scan >/dev/null 2>&1 &&
+  for i in $(seq 1 60); do mkdir -p "src/m$i"; echo x > "src/m$i/f.ts"; echo "- 2026-11-01 · Module $i keeps its cache warm, because cold starts are slow. @src/m$i/ (user)" >> .memory/decisions.md; done &&
+  git add -A && git commit -qm base && git checkout -qb pr && for i in $(seq 1 60); do echo y >> "src/m$i/f.ts"; done && git commit -qam pr )
+o="$(cd "$BIG" && bash "$SRC/action/pr-comment.sh" --base main)"
+check "action: a pull request touching many areas lists 30 entries and counts the rest" '[ "$(printf "%s\n" "$o" | grep -c "^- Module")" = 30 ] && printf "%s" "$o" | grep -q "… and 30 more" && printf "%s" "$o" | grep -q "Notes for the files in this PR\*\* (60)"' "$(printf "%s" "$o" | tail -n 3)"
+# a base branch with a slash (release/1.x), present or not yet fetched, as on GitHub
+git init -q --bare "$TMP/prorigin.git" && ( cd "$PRR" && git remote add origin "$TMP/prorigin.git" && git push -q origin main:release/1.x 2>/dev/null &&
+  git update-ref -d refs/remotes/origin/release/1.x 2>/dev/null )
+o="$(cd "$PRR" && BASE_REF=release/1.x bash "$SRC/action/pr-comment.sh")"
+check "action: a base branch with a slash is found (fetched when missing)" 'printf "%s" "$o" | grep -q "Frozen areas touched"' "$o"
 mkdir -p "$TMP/stub" && printf '%s\n' '#!/usr/bin/env bash' 'echo "curl $*" >> "$STUB_LOG"' 'case "$*" in *"comments?per_page"*) cat "$STUB_LIST" ;; *) echo "{}" ;; esac' > "$TMP/stub/curl" && chmod +x "$TMP/stub/curl"
 printf '[{"id":42,"body":"<!-- team-memory:pr -->old"}]' > "$TMP/stub/has.json"; : > "$TMP/stub/log"
 if command -v jq >/dev/null 2>&1; then
